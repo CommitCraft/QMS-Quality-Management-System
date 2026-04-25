@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-family: 'Segoe UI', Inter, system-ui, sans-serif;
+  background: #0b1016;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(93, 214, 196, 0.08), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(201, 122, 71, 0.08), transparent 28%),
+    linear-gradient(180deg, #0b1016 0%, #111821 100%);
+  color: #f4f7fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-3xl border border-white/10 bg-white/5 shadow-panel backdrop-blur-xl;
+  }
+
+  .panel-title {
+    @apply text-lg font-semibold text-white;
+  }
+
+  .input {
+    @apply w-full rounded-2xl border border-white/10 bg-steel-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-steel-400 focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20;
+  }
+
+  .label {
+    @apply mb-2 block text-xs uppercase tracking-[0.25em] text-steel-300;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-3 text-sm font-semibold text-steel-950 transition hover:bg-accent-400;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-2xl bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-400;
+  }
+}
