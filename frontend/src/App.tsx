@@ -5,17 +5,18 @@ import { AuthLayout } from './layouts/AuthLayout';
 import LoginPage from './pages/LoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
-import DashboardPage from './pages/DashboardPage';
-import UsersPage from './pages/UsersPage';
-import RolesPage from './pages/RolesPage';
+import DashboardPage from './pages/dashboard';
+import UsersPage from './pages/access-control/users';
+import RolesPage from './pages/access-control/roles';
+import RoleUsersPage from './pages/access-control/role-users';
 import PermissionsPage from './pages/PermissionsPage';
 import DepartmentsPage from './pages/DepartmentsPage';
-import DocumentsPage from './pages/DocumentsPage';
+import DocumentsPage from './pages/documents';
 import CapaPage from './pages/CapaPage';
 import NcrPage from './pages/NcrPage';
 import AuditsPage from './pages/AuditsPage';
-import ReportsPage from './pages/ReportsPage';
-import SettingsPage from './pages/SettingsPage';
+import ReportsPage from './pages/reports';
+import SettingsPage from './pages/settings';
 import SmtpSettingsPage from './pages/SmtpSettingsPage';
 import StorageSettingsPage from './pages/StorageSettingsPage';
 import CompanyProfilePage from './pages/CompanyProfilePage';
@@ -36,6 +37,7 @@ const App = () => {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/roles/manage" element={<RolesPage />} />
+          <Route path="/roles/users" element={<RoleUsersPage />} />
           <Route path="/permissions" element={<PermissionsPage />} />
           <Route path="/departments" element={<DepartmentsPage />} />
           <Route path="/documents" element={<DocumentsPage />} />

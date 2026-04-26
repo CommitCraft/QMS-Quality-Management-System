@@ -1,0 +1,1 @@
+export type RolesFeatureType = 'roles';

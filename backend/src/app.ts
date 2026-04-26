@@ -3,9 +3,9 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
-import apiRoutes from './routes';
+import apiRoutes from './modules';
 import { env } from './config/env';
-import { errorHandler, notFound } from './middleware/errorHandler';
+import { errorHandler, notFound } from './common/middleware';
 
 export const createApp = () => {
   const app = express();

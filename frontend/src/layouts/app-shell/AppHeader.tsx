@@ -1,7 +1,8 @@
 import { MutableRefObject } from "react";
-import { NavLink } from "react-router-dom";
-import { FullscreenIcon, MenuIcon, UserAvatarIcon } from "./icons";
+import { FullscreenIcon, MenuIcon } from "./icons";
 import { IconProps } from "./types";
+import { Breadcrumbs } from "./components/Breadcrumbs";
+import { ProfileMenu } from "./components/ProfileMenu";
 
 type Breadcrumb = {
   label: string;
@@ -60,22 +61,7 @@ export const AppHeader = ({
 
             <div>
               <div className="text-base font-bold tracking-wide text-slate-900">{activeLabel}</div>
-
-              <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
-                {breadcrumbItems.map((crumb, index) => (
-                  <span key={`${crumb.to}-${index}`} className="flex items-center gap-2">
-                    {index > 0 ? <span className="text-slate-400">/</span> : null}
-
-                    {index === breadcrumbItems.length - 1 ? (
-                      <span className="font-medium text-slate-700">{crumb.label}</span>
-                    ) : (
-                      <NavLink to={crumb.to} className="transition hover:text-blue-700">
-                        {crumb.label}
-                      </NavLink>
-                    )}
-                  </span>
-                ))}
-              </div>
+              <Breadcrumbs items={breadcrumbItems} />
             </div>
           </div>
         </div>
@@ -89,43 +75,14 @@ export const AppHeader = ({
             <FullscreenIcon />
           </button>
 
-          <div className="relative" ref={profileMenuRef}>
-            <button
-              className="grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-[#d1d5db] bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
-              title={user?.name || "User"}
-              onClick={() => setProfileMenuOpen((value) => !value)}
-            >
-              <UserAvatarIcon />
-            </button>
-
-            {profileMenuOpen ? (
-              <div className="absolute right-0 top-12 z-50 w-64 rounded-xl border border-[#d9e0e4] bg-white p-1.5 shadow-xl">
-                <div className="rounded-lg border border-[#e5e7eb] bg-[#f8fbfb] px-3 py-2.5">
-                  <div className="truncate text-sm font-semibold text-slate-900">{user?.name || "User"}</div>
-                  <div className="truncate text-xs text-slate-500">{user?.email || "No email available"}</div>
-                  <div className="mt-2 inline-flex rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700">
-                    {user?.roleName || "User"}
-                  </div>
-                </div>
-
-                <div className="my-1 border-t border-[#e5e7eb]" />
-
-                <button
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                  onClick={onOpenProfile}
-                >
-                  My Profile
-                </button>
-
-                <button
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
-                  onClick={onLogout}
-                >
-                  Logout
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <ProfileMenu
+            profileMenuOpen={profileMenuOpen}
+            setProfileMenuOpen={setProfileMenuOpen}
+            profileMenuRef={profileMenuRef}
+            user={user}
+            onOpenProfile={onOpenProfile}
+            onLogout={onLogout}
+          />
         </div>
       </div>
     </header>
