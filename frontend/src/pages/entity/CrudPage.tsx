@@ -375,15 +375,7 @@ export const CrudPage = ({ config }: CrudPageProps) => {
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-2 text-[15px] font-semibold text-slate-800">
-          <span className="text-[32px] leading-none text-slate-900 dark:text-white">
-            Company Profile
-          </span>
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#6b7d8c] text-[12px] text-[#4c6475]">
-            ?
-          </span>
-        </div>
-
+        
         <div className="rounded-[10px] border border-[#b8c7c7] bg-[#f8fbfb] p-4">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_0.98fr]">
             <div className="space-y-5">

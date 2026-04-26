@@ -146,7 +146,23 @@ const CloseIcon = ({ className = iconClass }: IconProps) => (
     <path d="M18 6 6 18M6 6l12 12" />
   </svg>
 );
-
+const BuildIcon = ({ className = iconClass }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* Wrench handle */}
+    <path d="M14.7 6.3a4 4 0 0 0 4.9 4.9l-9.2 9.2a2 2 0 1 1-2.8-2.8l9.2-9.2a4 4 0 0 0-4.9-4.9l2.1-2.1a4 4 0 0 1 .7 4.9z" />
+    
+    {/* Small gear circle */}
+    <circle cx="18" cy="6" r="2" />
+  </svg>
+);
 const FullscreenIcon = ({ className = iconClass }: IconProps) => (
   <svg
     viewBox="0 0 24 24"
@@ -257,6 +273,24 @@ const navSections: NavSection[] = [
         ],
       },
 
+      // ✅ NEW 4M CHANGE MANAGEMENT MODULE
+      {
+        label: "4M Change",
+        icon: BuildIcon, // Material UI icon suggestion
+        children: [
+          { label: "Change Request List", to: "/4m-change/list" },
+          { label: "Create Change Request", to: "/4m-change/manage" },
+          { label: "Category Setup", to: "/4m-change/categories" },
+          { label: "Approval Workflow", to: "/4m-change/workflow" },
+          { label: "Risk Assessment", to: "/4m-change/risk-assessment" },
+          { label: "Validation Plan", to: "/4m-change/validation" },
+          { label: "Implementation Tracker", to: "/4m-change/implementation" },
+          { label: "My Change Actions", to: "/4m-change/actions" },
+          { label: "Change Logs", to: "/4m-change/logs" },
+          { label: "Reports", to: "/4m-change/reports" },
+        ],
+      },
+
       {
         label: "Supplier",
         icon: TruckIcon,
@@ -343,10 +377,7 @@ const navSections: NavSection[] = [
           { label: "Email SMTP Settings", to: "/settings/smtp" },
           { label: "General Settings", to: "/settings" },
           { label: "Storage Settings", to: "/settings/storage" },
-          // { label: "Page Helpers", to: "/page-helper" },
-          // { label: "Allow File Extensions", to: "/allow-file-extension" },
           { label: "Company Profile", to: "/settings/company-profile" },
-          // { label: "Document Meta Tags", to: "/document-meta-tag" },
         ],
       },
 
