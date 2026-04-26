@@ -436,7 +436,7 @@ export const AppLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const [openMenuLabel, setOpenMenuLabel] = useState<string | null>(null);
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -462,6 +462,10 @@ export const AppLayout = () => {
   }, [allItems, pathname]);
 
   const ActiveIcon = activeItem.icon;
+
+  useEffect(() => {
+    setOpenMenuLabel(activeItem.children?.length ? activeItem.label : null);
+  }, [activeItem]);
 
   const shouldUseExactMatch = (path?: string) => {
     if (!path) {
@@ -507,11 +511,11 @@ export const AppLayout = () => {
       ? item.children?.some((child) => isPathActive(pathname, child.to))
       : isPathActive(pathname, item.to);
 
-    const isOpen = openMenus[item.label] ?? !!isParentActive;
+    const isOpen = openMenuLabel ? openMenuLabel === item.label : !!isParentActive;
 
     if (hasChildren) {
       return (
-        <div key={item.label}>
+        <div key={item.label} className="relative">
           <button
             type="button"
             className={`group flex w-full items-center rounded-[8px] text-[16px] font-semibold tracking-wide transition ${
@@ -523,12 +527,7 @@ export const AppLayout = () => {
                 ? "bg-[#4351b8] text-white shadow-sm"
                 : "text-[#e6e8ec] hover:bg-[#3a404d] hover:text-white"
             }`}
-            onClick={() =>
-              setOpenMenus((current) => ({
-                ...current,
-                [item.label]: !isOpen,
-              }))
-            }
+            onClick={() => setOpenMenuLabel((current) => (current === item.label ? null : item.label))}
             title={collapsed && !isMobile ? item.label : undefined}
           >
             <span
@@ -557,6 +556,34 @@ export const AppLayout = () => {
               </span>
             ) : null}
           </button>
+
+          {collapsed && !isMobile && isOpen ? (
+            <div className="absolute left-[calc(100%+12px)] top-0 z-50 w-64 rounded-xl border border-white/10 bg-[#2f3440] p-2 shadow-2xl">
+              <div className="mb-2 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#4351b8] bg-white rounded-md">
+                {item.label}
+              </div>
+
+              <div className="space-y-1">
+                {item.children?.map((child) => (
+                  <NavLink
+                    key={child.to}
+                    to={child.to}
+                    end={child.to === "/settings"}
+                    className={({ isActive }) =>
+                      `block rounded-lg px-3 py-2 text-sm font-medium transition ${
+                        isActive
+                          ? "bg-[#4351b8] text-white shadow-sm"
+                          : "text-[#cfd3dc] hover:bg-[#3a404d] hover:text-white"
+                      }`
+                    }
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {child.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {!(collapsed && !isMobile) && isOpen ? (
             <div className="mt-1 space-y-1 pl-[58px]">
@@ -670,7 +697,7 @@ export const AppLayout = () => {
             collapsed ? "xl:w-20" : "xl:w-[315px]"
           }`}
         >
-          <div className="mb-3 flex items-center justify-between">
+          <div className="sticky top-0 z-20 mb-3 flex items-center justify-between bg-[#2f3440] py-1">
             {!collapsed ? (
               <div className="flex min-h-[48px] items-center">
                 {profile?.logoUrl ? (
@@ -698,7 +725,7 @@ export const AppLayout = () => {
             )}
 
             <button
-              className="absolute -right-4 top-4 z-[9999] grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-[#252a34] text-white shadow-lg transition hover:bg-[#3a404d]"
+              className="absolute -right-7 top-2 z-[9999] grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-[#252a34] text-white shadow-lg transition hover:bg-[#3a404d]"
               onClick={() => setCollapsed((value) => !value)}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
@@ -706,7 +733,7 @@ export const AppLayout = () => {
             </button>
           </div>
 
-          <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
+          <nav className="flex-1 space-y-1 overflow-visible pr-1">
             {navSections
               .flatMap((section) => section.items)
               .map((item) => renderNavItem(item))}
