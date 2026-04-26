@@ -4,6 +4,7 @@ import { ApiResponse } from '../types';
 export interface RoleOption {
   id: number;
   name: string;
+  description?: string | null;
 }
 
 export interface PermissionItem {
@@ -20,6 +21,9 @@ export const rolePermissionService = {
     (await api.get<ApiResponse<{ roleId: number; roleName: string; permissionIds: number[] }>>(`/roles/${roleId}/permissions`)).data,
   createRoleWithPermissions: async (payload: { name: string; description?: string; permissionIds: number[] }) =>
     (await api.post<ApiResponse<unknown>>('/roles/with-permissions', payload)).data,
+  updateRole: async (roleId: number, payload: { name: string; description?: string }) =>
+    (await api.put<ApiResponse<unknown>>(`/roles/${roleId}`, payload)).data,
+  deleteRole: async (roleId: number) => (await api.delete<ApiResponse<null>>(`/roles/${roleId}`)).data,
   updateRolePermissions: async (roleId: number, permissionIds: number[]) =>
     (await api.put<ApiResponse<unknown>>(`/roles/${roleId}/permissions`, { permissionIds })).data,
 };
