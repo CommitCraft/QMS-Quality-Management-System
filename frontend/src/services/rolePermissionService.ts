@@ -7,16 +7,29 @@ export interface RoleOption {
   description?: string | null;
 }
 
-export interface PermissionItem {
+export interface PermissionActionNode {
   id: number;
-  module: string;
-  action: string;
-  name: string;
+  code: string;
+  label: string;
+}
+
+export interface PermissionPageNode {
+  label: string;
+  actions: PermissionActionNode[];
+}
+
+export interface PermissionModuleNode {
+  label: string;
+  pages: PermissionPageNode[];
+}
+
+export interface PermissionTreeResponse {
+  modules: PermissionModuleNode[];
 }
 
 export const rolePermissionService = {
   listRoles: async () => (await api.get<{ success: boolean; data: RoleOption[] }>('/roles?limit=200')).data,
-  listPermissions: async () => (await api.get<{ success: boolean; data: PermissionItem[] }>('/permissions?limit=1000')).data,
+  listPermissions: async () => (await api.get<ApiResponse<PermissionTreeResponse>>('/permissions/tree')).data,
   getRolePermissions: async (roleId: number) =>
     (await api.get<ApiResponse<{ roleId: number; roleName: string; permissionIds: number[] }>>(`/roles/${roleId}/permissions`)).data,
   createRoleWithPermissions: async (payload: { name: string; description?: string; permissionIds: number[] }) =>

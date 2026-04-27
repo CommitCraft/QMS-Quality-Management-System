@@ -33,23 +33,78 @@ const App = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/roles" element={<RolesPage />} />
-          <Route path="/roles/manage" element={<RolesPage />} />
-          <Route path="/roles/users" element={<RoleUsersPage />} />
-          <Route path="/permissions" element={<PermissionsPage />} />
-          <Route path="/departments" element={<DepartmentsPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/capa" element={<CapaPage />} />
-          <Route path="/ncr" element={<NcrPage />} />
-          <Route path="/audits" element={<AuditsPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/profile" element={<MyProfilePage />} />
-          <Route path="/settings/smtp" element={<SmtpSettingsPage />} />
-          <Route path="/settings/storage" element={<StorageSettingsPage />} />
-          <Route path="/settings/company-profile" element={<CompanyProfilePage />} />
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_DASHBOARD"]} />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_USERS"]} />}>
+            <Route path="/users" element={<UsersPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_ROLES"]} />}>
+            <Route path="/roles" element={<RolesPage />} />
+            <Route path="/roles/manage" element={<RolesPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_ROLE_USER"]} />}>
+            <Route path="/roles/users" element={<RoleUsersPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_PERMISSIONS"]} />}>
+            <Route path="/permissions" element={<PermissionsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_DEPARTMENTS"]} />}>
+            <Route path="/departments" element={<DepartmentsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_MY_DOCUMENTS"]} />}>
+            <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/assign/list-view" element={<DocumentsPage />} />
+            <Route path="/assign/folder-view" element={<DocumentsPage />} />
+            <Route path="/documents/list-view" element={<DocumentsPage />} />
+            <Route path="/documents/folder-view" element={<DocumentsPage />} />
+            <Route path="/categories" element={<DocumentsPage />} />
+            <Route path="/documents/deep-search" element={<DocumentsPage />} />
+            <Route path="/ai-document-generator" element={<DocumentsPage />} />
+            <Route path="/ai-document-generator-list" element={<DocumentsPage />} />
+            <Route path="/aiprompttemplate" element={<DocumentsPage />} />
+            <Route path="/documents/ocr_content_extractor" element={<DocumentsPage />} />
+            <Route path="/bulk-document-upload" element={<DocumentsPage />} />
+            <Route path="/file-request" element={<DocumentsPage />} />
+            <Route path="/document-audit-trails" element={<DocumentsPage />} />
+            <Route path="/recent-activity" element={<DocumentsPage />} />
+            <Route path="/archive-documents" element={<DocumentsPage />} />
+            <Route path="/archive-folders" element={<DocumentsPage />} />
+            <Route path="/archive-retention-period" element={<DocumentsPage />} />
+            <Route path="/document-status" element={<DocumentsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_CAPA_REQUEST"]} />}>
+            <Route path="/capa" element={<CapaPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_NCR_LIST"]} />}>
+            <Route path="/ncr" element={<NcrPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_AUDIT_LIST"]} />}>
+            <Route path="/audits" element={<AuditsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_REPORTS"]} />}>
+            <Route path="/reports" element={<ReportsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_GENERAL_SETTINGS"]} />}>
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/profile" element={<MyProfilePage />} />
+            <Route path="/settings/smtp" element={<SmtpSettingsPage />} />
+            <Route path="/settings/storage" element={<StorageSettingsPage />} />
+            <Route path="/settings/company-profile" element={<CompanyProfilePage />} />
+          </Route>
+
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Route>
