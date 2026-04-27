@@ -14,6 +14,7 @@ import settingsRoutes from './settings/routes/settings.routes';
 import companyProfileRoutes from './company-profile/routes/company-profile.routes';
 import roleUsersRoutes from './role-users/routes/role-users.routes';
 import logsRoutes from './logs/routes/logs.routes';
+import trainingRoutes from './training/routes/training.routes';
 
 const apiRouter = Router();
 
@@ -31,6 +32,7 @@ apiRouter.use('/ncr', ncrRoutes);
 apiRouter.use('/audits', auditsRoutes);
 apiRouter.use('/documents', documentsRoutes);
 apiRouter.use('/logs', logsRoutes);
+apiRouter.use('/training', trainingRoutes);
 apiRouter.use('/', settingsRoutes);
 
 export default apiRouter;

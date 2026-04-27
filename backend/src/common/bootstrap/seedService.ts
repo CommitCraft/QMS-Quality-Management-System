@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { Audit, Capa, CompanyProfile, Department, Document, Ncr, Permission, Role, RolePermission, User } from '../../models';
+import { Audit, Capa, CompanyProfile, Department, Document, Ncr, Permission, Role, RolePermission, User, Course, CourseEnrollment, CourseProgress } from '../../models';
 import { flattenPermissionCatalog } from '../constants/permissions';
 
 const defaultPermissions = flattenPermissionCatalog();
@@ -136,4 +136,86 @@ export const seedDatabase = async () => {
       isDefault: true,
     },
   });
+
+  // Seed training courses
+  const courses = [
+    {
+      code: 'TRN-001',
+      title: 'GMP Fundamentals',
+      description: 'Introduction to Good Manufacturing Practice principles and requirements.',
+      duration: 120,
+      category: 'Compliance',
+      instructor: 'Dr. Rajesh Verma',
+      status: 'Active',
+    },
+    {
+      code: 'TRN-002',
+      title: 'Quality Systems Overview',
+      description: 'Understanding the ISO 9001 quality management system.',
+      duration: 90,
+      category: 'Quality Management',
+      instructor: 'Priya Sharma',
+      status: 'Active',
+    },
+    {
+      code: 'TRN-003',
+      title: 'Data Integrity in Operations',
+      description: 'Best practices for maintaining data integrity in manufacturing.',
+      duration: 60,
+      category: 'Compliance',
+      instructor: 'Amit Patel',
+      status: 'Active',
+    },
+    {
+      code: 'TRN-004',
+      title: 'Risk Management Essentials',
+      description: 'Risk assessment and mitigation strategies.',
+      duration: 75,
+      category: 'Management',
+      instructor: 'Dr. Suresh Kumar',
+      status: 'Active',
+    },
+    {
+      code: 'TRN-005',
+      title: 'Change Control Process',
+      description: 'Managing changes in manufacturing operations.',
+      duration: 60,
+      category: 'Operations',
+      instructor: 'Ravi Kumar',
+      status: 'Active',
+    },
+  ];
+
+  const seededCourses = [];
+  for (const course of courses) {
+    const [record] = await Course.findOrCreate({ where: { code: course.code }, defaults: course });
+    seededCourses.push(record);
+  }
+
+  // Assign courses to supervisor user
+  if (seededCourses.length > 0) {
+    const supervisorUser = await User.findOne({ where: { username: 'supervisor' } });
+    if (supervisorUser) {
+      for (const course of seededCourses) {
+        const [enrollment] = await CourseEnrollment.findOrCreate({
+          where: { courseId: course.id, userId: supervisorUser.id },
+          defaults: {
+            courseId: course.id,
+            userId: supervisorUser.id,
+            status: 'Not Started',
+            enrolledDate: new Date(),
+          },
+        });
+
+        // Create progress record if it doesn't exist
+        await CourseProgress.findOrCreate({
+          where: { enrollmentId: enrollment.id },
+          defaults: {
+            enrollmentId: enrollment.id,
+            progressPercentage: 0,
+          },
+        });
+      }
+    }
+  }
 };

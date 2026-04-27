@@ -166,6 +166,35 @@ class ActivityLogModel extends Model<InferAttributes<ActivityLogModel>, InferCre
   declare meta: string | null;
 }
 
+class CourseModel extends Model<InferAttributes<CourseModel>, InferCreationAttributes<CourseModel>> {
+  declare id: CreationOptional<number>;
+  declare code: string;
+  declare title: string;
+  declare description: string | null;
+  declare duration: number; // in minutes
+  declare category: string | null;
+  declare instructor: string | null;
+  declare status: string;
+  declare enrollments?: CourseEnrollmentModel[];
+}
+
+class CourseEnrollmentModel extends Model<InferAttributes<CourseEnrollmentModel>, InferCreationAttributes<CourseEnrollmentModel>> {
+  declare id: CreationOptional<number>;
+  declare courseId: number;
+  declare userId: number;
+  declare enrolledDate: Date;
+  declare status: string;
+  declare progress?: CourseProgressModel;
+}
+
+class CourseProgressModel extends Model<InferAttributes<CourseProgressModel>, InferCreationAttributes<CourseProgressModel>> {
+  declare id: CreationOptional<number>;
+  declare enrollmentId: number;
+  declare progressPercentage: number;
+  declare lastAccessedDate: Date | null;
+  declare completedDate: Date | null;
+}
+
 export const initModels = (sequelizeInstance: Sequelize) => {
   RoleModel.init(
     {
@@ -369,6 +398,42 @@ export const initModels = (sequelizeInstance: Sequelize) => {
     { sequelize: sequelizeInstance, tableName: 'activity_logs' },
   );
 
+  CourseModel.init(
+    {
+      id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+      code: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+      title: { type: DataTypes.STRING(200), allowNull: false },
+      description: { type: DataTypes.TEXT, allowNull: true },
+      duration: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
+      category: { type: DataTypes.STRING(100), allowNull: true },
+      instructor: { type: DataTypes.STRING(150), allowNull: true },
+      status: { type: DataTypes.ENUM('Active', 'Inactive'), allowNull: false, defaultValue: 'Active' },
+    },
+    { sequelize: sequelizeInstance, tableName: 'courses' },
+  );
+
+  CourseEnrollmentModel.init(
+    {
+      id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+      courseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, field: 'course_id' },
+      userId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, field: 'user_id' },
+      enrolledDate: { type: DataTypes.DATE, allowNull: false, field: 'enrolled_date', defaultValue: DataTypes.NOW },
+      status: { type: DataTypes.ENUM('Not Started', 'In Progress', 'Completed'), allowNull: false, defaultValue: 'Not Started' },
+    },
+    { sequelize: sequelizeInstance, tableName: 'course_enrollments', indexes: [{ unique: true, fields: ['course_id', 'user_id'] }] },
+  );
+
+  CourseProgressModel.init(
+    {
+      id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+      enrollmentId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, field: 'enrollment_id', unique: true },
+      progressPercentage: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0, field: 'progress_percentage' },
+      lastAccessedDate: { type: DataTypes.DATE, allowNull: true, field: 'last_accessed_date' },
+      completedDate: { type: DataTypes.DATE, allowNull: true, field: 'completed_date' },
+    },
+    { sequelize: sequelizeInstance, tableName: 'course_progress' },
+  );
+
   RoleModel.hasMany(UserModel, { foreignKey: 'roleId', as: 'users' });
   UserModel.belongsTo(RoleModel, { foreignKey: 'roleId', as: 'role' });
   DepartmentModel.hasMany(UserModel, { foreignKey: 'departmentId', as: 'users' });
@@ -379,6 +444,10 @@ export const initModels = (sequelizeInstance: Sequelize) => {
   DocumentVersionModel.belongsTo(DocumentModel, { foreignKey: 'documentId', as: 'document' });
   AuditModel.hasMany(AuditFindingModel, { foreignKey: 'auditId', as: 'findings' });
   AuditFindingModel.belongsTo(AuditModel, { foreignKey: 'auditId', as: 'audit' });
+  CourseModel.hasMany(CourseEnrollmentModel, { foreignKey: 'courseId', as: 'enrollments' });
+  CourseEnrollmentModel.belongsTo(CourseModel, { foreignKey: 'courseId', as: 'course' });
+  CourseEnrollmentModel.hasOne(CourseProgressModel, { foreignKey: 'enrollmentId', as: 'progress' });
+  CourseProgressModel.belongsTo(CourseEnrollmentModel, { foreignKey: 'enrollmentId', as: 'enrollment' });
 
   return {
     Role: RoleModel,
@@ -396,6 +465,9 @@ export const initModels = (sequelizeInstance: Sequelize) => {
     StorageSetting: StorageSettingModel,
     CompanyProfile: CompanyProfileModel,
     ActivityLog: ActivityLogModel,
+    Course: CourseModel,
+    CourseEnrollment: CourseEnrollmentModel,
+    CourseProgress: CourseProgressModel,
   };
 };
 
@@ -417,4 +489,7 @@ export const {
   StorageSetting,
   CompanyProfile,
   ActivityLog,
+  Course,
+  CourseEnrollment,
+  CourseProgress,
 } = models;

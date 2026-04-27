@@ -23,6 +23,10 @@ import CompanyProfilePage from './pages/CompanyProfilePage';
 import MyProfilePage from './pages/MyProfilePage';
 import LoginAuditsPage from './pages/LoginAuditsPage';
 import ErrorLogsPage from './pages/ErrorLogsPage';
+import CoursePage from './pages/course/CoursePage';
+import MyCoursesPage from './pages/course/MyCoursesPage';
+import AssignCoursePage from './pages/course/AssignCoursePage';
+import CourseSummaryPage from './pages/course/CourseSummaryPage';
 
 const App = () => {
   return (
@@ -105,6 +109,22 @@ const App = () => {
 
           <Route element={<ProtectedRoute requiredPermissions={["VIEW_ERROR_LOGS"]} />}>
             <Route path="/logs" element={<ErrorLogsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_TRAINING_COURSE"]} />}>
+            <Route path="/course/list" element={<CoursePage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_MY_COURSES"]} />}>
+            <Route path="/course/my-courses" element={<MyCoursesPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["MANAGE_TRAINING_ASSIGN_COURSE"]} />}>
+            <Route path="/course/assign" element={<AssignCoursePage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_COURSE_SUMMARY"]} />}>
+            <Route path="/course/summary" element={<CourseSummaryPage />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredPermissions={["VIEW_GENERAL_SETTINGS"]} />}>
