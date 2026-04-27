@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import dns from 'node:dns/promises';
 import { Op, WhereOptions } from 'sequelize';
 import { AuthenticatedRequest } from '../../../common/middleware';
 import { parsePagination } from '../../../common/utils';
@@ -6,6 +7,7 @@ import { ActivityLog, User } from '../../../models';
 
 type ParsedMeta = {
   ipAddress?: string;
+  clientName?: string;
   userAgent?: string;
   username?: string;
   method?: string;
@@ -36,6 +38,20 @@ const normalizeIp = (ip?: string) => {
   }
 
   return ip;
+};
+
+const resolveClientName = async (ip?: string) => {
+  const normalizedIp = normalizeIp(ip);
+  if (!normalizedIp) {
+    return undefined;
+  }
+
+  try {
+    const names = await dns.reverse(normalizedIp);
+    return names[0];
+  } catch {
+    return undefined;
+  }
 };
 
 export const getLoginAudits = async (req: AuthenticatedRequest, res: Response) => {
@@ -75,20 +91,25 @@ export const getLoginAudits = async (req: AuthenticatedRequest, res: Response) =
     : [];
   const userMap = new Map(users.map((user) => [user.id, user]));
 
-  const data = rows.map((row) => {
-    const meta = safeParseMeta(row.meta);
-    const user = row.userId ? userMap.get(row.userId) : undefined;
+  const data = await Promise.all(
+    rows.map(async (row) => {
+      const meta = safeParseMeta(row.meta);
+      const user = row.userId ? userMap.get(row.userId) : undefined;
+      const ipAddress = normalizeIp(meta.ipAddress);
+      const clientName = meta.clientName || (await resolveClientName(ipAddress)) || '-';
 
-    return {
-      id: row.id,
-      username: user?.username || meta.username || '-',
-      email: user?.email || '-',
-      ipAddress: normalizeIp(meta.ipAddress) || '-',
-      status: row.action === 'login' ? 'Success' : 'Failed',
-      userAgent: meta.userAgent || '-',
-      createdAt: row.get('createdAt') as Date | string,
-    };
-  });
+      return {
+        id: row.id,
+        username: user?.username || meta.username || '-',
+        email: user?.email || '-',
+        ipAddress: ipAddress || '-',
+        clientName,
+        status: row.action === 'login' ? 'Success' : 'Failed',
+        userAgent: meta.userAgent || '-',
+        createdAt: row.get('createdAt') as Date | string,
+      };
+    }),
+  );
 
   res.json({
     success: true,

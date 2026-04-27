@@ -11,6 +11,8 @@ type LoginAuditRow = {
   username?: string;
   email?: string;
   ipAddress?: string;
+  clientName?: string;
+  macAddress?: string;
   status?: string;
   userAgent?: string;
   createdAt?: string;
@@ -44,6 +46,12 @@ const LoginAuditsPage = () => {
       { key: 'username', label: 'Username', render: (row) => String(row.username || '-') },
       { key: 'email', label: 'Email', render: (row) => String(row.email || '-') },
       { key: 'ipAddress', label: 'IP Address', render: (row) => String(row.ipAddress || '-') },
+      { key: 'clientName', label: 'System Name', render: (row) => String(row.clientName || '-') },
+      {
+        key: 'macAddress',
+        label: 'MAC Address',
+        render: (row) => String(row.macAddress || 'Not available via web login'),
+      },
       {
         key: 'status',
         label: 'Status',
@@ -98,10 +106,14 @@ const LoginAuditsPage = () => {
       <div className="rounded-[10px] border border-[#b8c7c7] bg-[#f8fbfb] p-4">
         <input
           className="h-[42px] w-full rounded-lg border border-[#d1d5db] bg-white px-4 text-[14px] text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          placeholder="Search by username, email, IP, or status"
+          placeholder="Search by username, email, IP, system name, or status"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
+      </div>
+
+      <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+        MAC address cannot be reliably captured from a standard browser-based login. The page shows it as unavailable unless you add a client agent or device control tool.
       </div>
 
       <DataTable columns={columns} rows={rows} loading={loading} />

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { body } from 'express-validator';
 import crypto from 'crypto';
+import dns from 'node:dns/promises';
 import { Op } from 'sequelize';
 import { comparePassword, hashPassword, signAccessToken, signRefreshToken, verifyRefreshToken } from '../../../common/utils';
 import { AppError, AuthenticatedRequest } from '../../../common/middleware';
@@ -23,6 +24,11 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
   const user = await User.findOne({ where: { username }, include: [{ association: 'role', include: [{ association: 'permissions' }] }] });
   const ipAddress = req.ip;
   const userAgent = req.get('user-agent') || undefined;
+  const normalizedIp = ipAddress?.startsWith('::ffff:') ? ipAddress.replace('::ffff:', '') : ipAddress;
+
+  const clientName = normalizedIp
+    ? await dns.reverse(normalizedIp).then((names) => names[0]).catch(() => undefined)
+    : undefined;
 
   if (!user || user.status !== 'Active') {
     await logActivity({
@@ -34,6 +40,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
       meta: {
         username,
         ipAddress,
+        clientName,
         userAgent,
       },
     });
@@ -51,6 +58,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
       meta: {
         username: user.username,
         ipAddress,
+        clientName,
         userAgent,
       },
     });
@@ -79,6 +87,7 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
     meta: {
       username: user.username,
       ipAddress,
+      clientName,
       userAgent,
     },
   });
