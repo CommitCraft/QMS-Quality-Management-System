@@ -21,12 +21,39 @@ export const loginValidators = [
 export const login = async (req: AuthenticatedRequest, res: Response) => {
   const { username, password } = req.body as { username: string; password: string };
   const user = await User.findOne({ where: { username }, include: [{ association: 'role', include: [{ association: 'permissions' }] }] });
+  const ipAddress = req.ip;
+  const userAgent = req.get('user-agent') || undefined;
+
   if (!user || user.status !== 'Active') {
+    await logActivity({
+      userId: null,
+      entity: 'auth',
+      entityId: null,
+      action: 'login_failed',
+      description: 'Login failed: invalid credentials',
+      meta: {
+        username,
+        ipAddress,
+        userAgent,
+      },
+    });
     throw new AppError('Invalid credentials', 401);
   }
 
   const valid = await comparePassword(password, user.password);
   if (!valid) {
+    await logActivity({
+      userId: user.id,
+      entity: 'auth',
+      entityId: user.id,
+      action: 'login_failed',
+      description: 'Login failed: invalid credentials',
+      meta: {
+        username: user.username,
+        ipAddress,
+        userAgent,
+      },
+    });
     throw new AppError('Invalid credentials', 401);
   }
 
@@ -43,7 +70,18 @@ export const login = async (req: AuthenticatedRequest, res: Response) => {
   user.lastLoginAt = new Date();
   await user.save();
 
-  await logActivity({ userId: user.id, entity: 'auth', entityId: user.id, action: 'login', description: 'User logged in' });
+  await logActivity({
+    userId: user.id,
+    entity: 'auth',
+    entityId: user.id,
+    action: 'login',
+    description: 'User logged in',
+    meta: {
+      username: user.username,
+      ipAddress,
+      userAgent,
+    },
+  });
 
   res.cookie('qms_refresh_token', refreshToken, cookieOptions);
   res.json({

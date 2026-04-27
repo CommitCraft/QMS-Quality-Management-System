@@ -21,6 +21,8 @@ import SmtpSettingsPage from './pages/SmtpSettingsPage';
 import StorageSettingsPage from './pages/StorageSettingsPage';
 import CompanyProfilePage from './pages/CompanyProfilePage';
 import MyProfilePage from './pages/MyProfilePage';
+import LoginAuditsPage from './pages/LoginAuditsPage';
+import ErrorLogsPage from './pages/ErrorLogsPage';
 
 const App = () => {
   return (
@@ -95,6 +97,14 @@ const App = () => {
 
           <Route element={<ProtectedRoute requiredPermissions={["VIEW_REPORTS"]} />}>
             <Route path="/reports" element={<ReportsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_LOGIN_AUDITS"]} />}>
+            <Route path="/login-audit" element={<LoginAuditsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute requiredPermissions={["VIEW_ERROR_LOGS"]} />}>
+            <Route path="/logs" element={<ErrorLogsPage />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredPermissions={["VIEW_GENERAL_SETTINGS"]} />}>
