@@ -9,4 +9,8 @@ export const CORE_PERMISSIONS = {
     write: 'users.write',
     remove: 'users.delete',
   },
+  roleUsers: {
+    view: 'VIEW_ROLE_USER',
+    manage: 'MANAGE_ROLE_USER',
+  },
 } as const;

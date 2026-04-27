@@ -157,7 +157,7 @@ export const navSections: NavSection[] = [
         children: [
           { label: "Roles", to: "/roles", requiredPermissions: ["roles.read"] },
           { label: "Users", to: "/users", requiredPermissions: ["users.read"] },
-          { label: "Role User", to: "/roles/users", requiredPermissions: ["users.read", "roles.read"] },
+          { label: "Role User", to: "/roles/users", requiredPermissions: ["VIEW_ROLE_USER"] },
         ],
       },
       {

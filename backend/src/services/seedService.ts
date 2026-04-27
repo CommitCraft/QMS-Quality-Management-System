@@ -9,6 +9,8 @@ const defaultPermissions = [
   { module: 'roles', action: 'read', name: 'roles.read' },
   { module: 'roles', action: 'write', name: 'roles.write' },
   { module: 'roles', action: 'delete', name: 'roles.delete' },
+  { module: 'role-users', action: 'view', name: 'VIEW_ROLE_USER' },
+  { module: 'role-users', action: 'manage', name: 'MANAGE_ROLE_USER' },
   { module: 'permissions', action: 'read', name: 'permissions.read' },
   { module: 'permissions', action: 'write', name: 'permissions.write' },
   { module: 'permissions', action: 'delete', name: 'permissions.delete' },
