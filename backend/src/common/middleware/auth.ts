@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { AppError } from './errorHandler';
 import { verifyAccessToken } from '../utils/jwt';
-import { RolePermission, User } from '../models';
+import { User } from '../../models';
 
 export interface AuthenticatedRequest extends Request {
   user?: {

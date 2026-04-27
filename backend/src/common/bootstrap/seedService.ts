@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { Audit, Capa, CompanyProfile, Department, Document, Ncr, Permission, Role, RolePermission, User } from '../models';
+import { Audit, Capa, CompanyProfile, Department, Document, Ncr, Permission, Role, RolePermission, User } from '../../models';
 
 const defaultPermissions = [
   { module: 'dashboard', action: 'read', name: 'dashboard.read' },

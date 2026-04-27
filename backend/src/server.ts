@@ -2,7 +2,7 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { sequelize } from './config/database';
 import { initModels } from './models';
-import { seedDatabase } from './services/seedService';
+import { seedDatabase } from './common/bootstrap/seedService';
 
 const start = async () => {
   initModels(sequelize);

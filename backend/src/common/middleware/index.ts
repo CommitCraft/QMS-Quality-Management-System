@@ -1,4 +1,4 @@
-export { authenticate, requirePermission } from '../../middleware/auth';
-export { AppError, errorHandler, notFound } from '../../middleware/errorHandler';
-export { validateRequest } from '../../middleware/validate';
-export type { AuthenticatedRequest } from '../../middleware/auth';
+export { authenticate, requirePermission } from './auth';
+export { AppError, errorHandler, notFound } from './errorHandler';
+export { validateRequest } from './validate';
+export type { AuthenticatedRequest } from './auth';

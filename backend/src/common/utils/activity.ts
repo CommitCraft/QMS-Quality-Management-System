@@ -1,4 +1,4 @@
-import { ActivityLog } from '../models';
+import { ActivityLog } from '../../models';
 
 export const logActivity = async (input: {
   userId?: number | null;
