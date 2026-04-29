@@ -28,4 +28,5 @@ export const env = {
   },
   corsOrigin: required(process.env.CORS_ORIGIN, 'http://localhost:5173'),
   uploadDir: required(process.env.UPLOAD_DIR, 'uploads'),
+  uploadBaseUrl: required(process.env.UPLOAD_BASE_URL, 'http://localhost:5000'),
 };

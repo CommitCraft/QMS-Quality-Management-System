@@ -239,3 +239,118 @@ CREATE TABLE IF NOT EXISTS course_progress (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_course_progress_enrollment FOREIGN KEY (enrollment_id) REFERENCES course_enrollments(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS course_contents (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  course_id INT UNSIGNED NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NULL,
+  content_source_type ENUM('file', 'url') NOT NULL DEFAULT 'file',
+  content_type ENUM('video', 'pdf', 'doc', 'image', 'link', 'ppt', 'other') NOT NULL DEFAULT 'other',
+  file_url VARCHAR(500) NULL,
+  external_url VARCHAR(500) NULL,
+  file_name VARCHAR(255) NULL,
+  file_size INT UNSIGNED NULL,
+  mime_type VARCHAR(120) NULL,
+  display_order INT UNSIGNED NOT NULL DEFAULT 0,
+  is_required TINYINT(1) NOT NULL DEFAULT 0,
+  status ENUM('Draft', 'Active', 'Inactive') NOT NULL DEFAULT 'Draft',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  CONSTRAINT fk_course_contents_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS assignments (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  course_id INT UNSIGNED NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NULL,
+  due_date DATETIME NULL,
+  max_marks INT UNSIGNED NOT NULL DEFAULT 100,
+  passing_marks INT UNSIGNED NOT NULL DEFAULT 40,
+  attachment_source_type ENUM('file', 'url') NOT NULL DEFAULT 'file',
+  attachment_type ENUM('video', 'pdf', 'doc', 'image', 'link', 'ppt', 'other') NOT NULL DEFAULT 'other',
+  attachment_url VARCHAR(500) NULL,
+  attachment_file_name VARCHAR(255) NULL,
+  attachment_file_size INT UNSIGNED NULL,
+  attachment_mime_type VARCHAR(120) NULL,
+  status ENUM('Draft', 'Published', 'Closed') NOT NULL DEFAULT 'Draft',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  CONSTRAINT fk_assignments_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS assignment_submissions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  assignment_id INT UNSIGNED NOT NULL,
+  employee_id INT UNSIGNED NOT NULL,
+  submission_type ENUM('file', 'text', 'url') NOT NULL DEFAULT 'text',
+  submission_text TEXT NULL,
+  submission_url VARCHAR(500) NULL,
+  uploaded_file_url VARCHAR(500) NULL,
+  file_name VARCHAR(255) NULL,
+  file_size INT UNSIGNED NULL,
+  mime_type VARCHAR(120) NULL,
+  submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status ENUM('submitted', 'under_review', 'checked', 'rejected', 'resubmission_required') NOT NULL DEFAULT 'submitted',
+  marks_obtained INT UNSIGNED NULL,
+  feedback TEXT NULL,
+  checked_by INT UNSIGNED NULL,
+  checked_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_assignment_submissions_assignment FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_assignment_submissions_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_assignment_submissions_checker FOREIGN KEY (checked_by) REFERENCES users(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS test_series (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  course_id INT UNSIGNED NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NULL,
+  total_questions INT UNSIGNED NOT NULL DEFAULT 0,
+  total_marks INT UNSIGNED NOT NULL DEFAULT 0,
+  passing_marks INT UNSIGNED NOT NULL DEFAULT 0,
+  duration_minutes INT UNSIGNED NOT NULL DEFAULT 0,
+  start_date DATETIME NULL,
+  end_date DATETIME NULL,
+  status ENUM('Draft', 'Active', 'Expired') NOT NULL DEFAULT 'Draft',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  CONSTRAINT fk_test_series_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS test_questions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  test_series_id INT UNSIGNED NOT NULL,
+  question_text TEXT NOT NULL,
+  question_type ENUM('mcq', 'true_false', 'short_answer') NOT NULL DEFAULT 'mcq',
+  option_a TEXT NULL,
+  option_b TEXT NULL,
+  option_c TEXT NULL,
+  option_d TEXT NULL,
+  correct_answer TEXT NULL,
+  marks INT UNSIGNED NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_test_questions_series FOREIGN KEY (test_series_id) REFERENCES test_series(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS course_content_progress (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  course_id INT UNSIGNED NOT NULL,
+  content_id INT UNSIGNED NOT NULL,
+  employee_id INT UNSIGNED NOT NULL,
+  status ENUM('not_started', 'opened', 'completed') NOT NULL DEFAULT 'not_started',
+  opened_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_course_content_progress_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  CONSTRAINT fk_course_content_progress_content FOREIGN KEY (content_id) REFERENCES course_contents(id) ON DELETE CASCADE,
+  CONSTRAINT fk_course_content_progress_employee FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;

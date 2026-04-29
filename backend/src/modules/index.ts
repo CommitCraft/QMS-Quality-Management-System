@@ -15,6 +15,8 @@ import companyProfileRoutes from './company-profile/routes/company-profile.route
 import roleUsersRoutes from './role-users/routes/role-users.routes';
 import logsRoutes from './logs/routes/logs.routes';
 import trainingRoutes from './training/routes/training.routes';
+import './lms';
+import { coursesRouter, courseContentRouter, assignmentsRouter, assignmentSubmissionsRouter, testSeriesRouter } from './lms/routes';
 
 const apiRouter = Router();
 
@@ -33,6 +35,11 @@ apiRouter.use('/audits', auditsRoutes);
 apiRouter.use('/documents', documentsRoutes);
 apiRouter.use('/logs', logsRoutes);
 apiRouter.use('/training', trainingRoutes);
+apiRouter.use('/courses', coursesRouter);
+apiRouter.use('/', courseContentRouter);
+apiRouter.use('/', assignmentsRouter);
+apiRouter.use('/', assignmentSubmissionsRouter);
+apiRouter.use('/', testSeriesRouter);
 apiRouter.use('/', settingsRoutes);
 
 export default apiRouter;

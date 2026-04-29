@@ -4,12 +4,14 @@ import { sequelize } from './config/database';
 import { initModels } from './models';
 import { seedDatabase } from './common/bootstrap/seedService';
 import { ensureTrainingSchema } from './common/bootstrap/ensureTrainingSchema';
+import { ensureLmsSchema } from './common/bootstrap/ensureLmsSchema';
 
 const start = async () => {
   initModels(sequelize);
   await sequelize.authenticate();
   await sequelize.sync();
   await ensureTrainingSchema();
+  await ensureLmsSchema();
   await seedDatabase();
 
   const app = createApp();

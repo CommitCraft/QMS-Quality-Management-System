@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { Audit, Capa, CompanyProfile, Department, Document, Ncr, Permission, Role, RolePermission, User, Course, CourseEnrollment, CourseProgress } from '../../models';
+import { Assignment, AssignmentSubmission, CourseContent, TestQuestion, TestSeries } from '../../modules/lms/models';
 import { flattenPermissionCatalog } from '../constants/permissions';
 
 const defaultPermissions = flattenPermissionCatalog();
@@ -221,6 +222,92 @@ export const seedDatabase = async () => {
           },
         });
       }
+
+      const firstCourse = seededCourses[0];
+      await CourseContent.findOrCreate({
+        where: { courseId: firstCourse.id, title: 'Welcome to GMP Fundamentals' },
+        defaults: {
+          courseId: firstCourse.id,
+          title: 'Welcome to GMP Fundamentals',
+          description: 'Overview video for the first course module.',
+          contentSourceType: 'url',
+          contentType: 'video',
+          fileUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          externalUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          fileName: null,
+          fileSize: null,
+          mimeType: 'text/html',
+          displayOrder: 1,
+          isRequired: true,
+          status: 'Active',
+        },
+      });
+
+      const [assignment] = await Assignment.findOrCreate({
+        where: { courseId: firstCourse.id, title: 'GMP Basics Quiz' },
+        defaults: {
+          courseId: firstCourse.id,
+          title: 'GMP Basics Quiz',
+          description: 'Short written assignment for the GMP fundamentals course.',
+          dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+          maxMarks: 100,
+          passingMarks: 40,
+          attachmentSourceType: 'url',
+          attachmentType: 'pdf',
+          attachmentUrl: 'https://example.com/gmp-basics-quiz.pdf',
+          attachmentFileName: 'gmp-basics-quiz.pdf',
+          attachmentFileSize: null,
+          attachmentMimeType: 'application/pdf',
+          status: 'Published',
+        },
+      });
+
+      await AssignmentSubmission.findOrCreate({
+        where: { assignmentId: assignment.id, employeeId: supervisorUser.id },
+        defaults: {
+          assignmentId: assignment.id,
+          employeeId: supervisorUser.id,
+          submissionType: 'text',
+          submissionText: 'Acknowledged the GMP fundamentals and key compliance points.',
+          status: 'checked',
+          submittedAt: new Date(),
+          marksObtained: 92,
+          feedback: 'Good understanding of the material.',
+          checkedBy: adminUser.id,
+          checkedAt: new Date(),
+        },
+      });
+
+      const [testSeries] = await TestSeries.findOrCreate({
+        where: { courseId: firstCourse.id, title: 'GMP Fundamentals Assessment' },
+        defaults: {
+          courseId: firstCourse.id,
+          title: 'GMP Fundamentals Assessment',
+          description: 'A short assessment covering the basics of GMP.',
+          totalQuestions: 2,
+          totalMarks: 20,
+          passingMarks: 12,
+          durationMinutes: 30,
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+          status: 'Active',
+        },
+      });
+
+      await TestQuestion.findOrCreate({
+        where: { testSeriesId: testSeries.id, questionText: 'What does GMP stand for?' },
+        defaults: {
+          testSeriesId: testSeries.id,
+          questionText: 'What does GMP stand for?',
+          questionType: 'mcq',
+          optionA: 'General Manufacturing Policy',
+          optionB: 'Good Manufacturing Practice',
+          optionC: 'Global Material Process',
+          optionD: 'Grade Monitoring Protocol',
+          correctAnswer: 'Good Manufacturing Practice',
+          marks: 10,
+        },
+      });
     }
   }
 };
