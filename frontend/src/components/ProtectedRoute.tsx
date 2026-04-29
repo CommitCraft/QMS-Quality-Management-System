@@ -20,13 +20,14 @@ const hasAnyPermission = (userPermissions: string[] | undefined, requiredPermiss
 export const ProtectedRoute = ({ requiredPermissions }: ProtectedRouteProps) => {
   const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
+  const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-steel-950 text-steel-200">Loading...</div>;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace state={{ from: returnTo }} />;
   }
 
   if (!hasAnyPermission(user?.permissions, requiredPermissions)) {

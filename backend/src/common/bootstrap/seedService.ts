@@ -147,6 +147,7 @@ export const seedDatabase = async () => {
       category: 'Compliance',
       instructor: 'Dr. Rajesh Verma',
       status: 'Active',
+      autoAssignToNewEmployee: true,
     },
     {
       code: 'TRN-002',
@@ -156,6 +157,7 @@ export const seedDatabase = async () => {
       category: 'Quality Management',
       instructor: 'Priya Sharma',
       status: 'Active',
+      autoAssignToNewEmployee: true,
     },
     {
       code: 'TRN-003',
@@ -165,6 +167,7 @@ export const seedDatabase = async () => {
       category: 'Compliance',
       instructor: 'Amit Patel',
       status: 'Active',
+      autoAssignToNewEmployee: false,
     },
     {
       code: 'TRN-004',
@@ -174,6 +177,7 @@ export const seedDatabase = async () => {
       category: 'Management',
       instructor: 'Dr. Suresh Kumar',
       status: 'Active',
+      autoAssignToNewEmployee: false,
     },
     {
       code: 'TRN-005',
@@ -183,6 +187,7 @@ export const seedDatabase = async () => {
       category: 'Operations',
       instructor: 'Ravi Kumar',
       status: 'Active',
+      autoAssignToNewEmployee: true,
     },
   ];
 

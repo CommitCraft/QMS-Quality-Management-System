@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { authService } from '../services/authService';
 import { UserSession } from '../types';
 
@@ -18,6 +20,18 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleSessionExpired = (returnTo?: string) => {
+    setUser(null);
+    localStorage.removeItem('qms_access_token');
+    toast.error('Session expired. Please sign in again.');
+    const nextReturnTo = returnTo || `${location.pathname}${location.search}${location.hash}`;
+    if (location.pathname !== '/login') {
+      navigate(`/login?returnTo=${encodeURIComponent(nextReturnTo)}`, { replace: true, state: { from: nextReturnTo } });
+    }
+  };
 
   const hydrate = async () => {
     const token = localStorage.getItem('qms_access_token');
@@ -30,8 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await authService.me();
       setUser(response.data || null);
     } catch {
-      setUser(null);
-      localStorage.removeItem('qms_access_token');
+      handleSessionExpired();
     } finally {
       setLoading(false);
     }
@@ -40,6 +53,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     void hydrate();
   }, []);
+
+  useEffect(() => {
+    const onSessionExpired = (event: Event) => {
+      const customEvent = event as CustomEvent<{ returnTo?: string }>;
+      handleSessionExpired(customEvent.detail?.returnTo);
+    };
+
+    window.addEventListener('qms:session-expired', onSessionExpired);
+    return () => window.removeEventListener('qms:session-expired', onSessionExpired);
+  }, [location.hash, location.pathname, location.search, navigate]);
 
   const value = useMemo<AuthContextValue>(() => ({
     user,

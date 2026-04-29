@@ -19,6 +19,16 @@ api.interceptors.request.use((config) => {
 
 let refreshPromise: Promise<string | null> | null = null;
 
+const emitSessionExpired = (returnTo?: string) => {
+  window.dispatchEvent(
+    new CustomEvent('qms:session-expired', {
+      detail: {
+        returnTo,
+      },
+    }),
+  );
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -36,6 +46,10 @@ api.interceptors.response.use(
         return api(originalRequest);
       }
       localStorage.removeItem('qms_access_token');
+      emitSessionExpired(typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}${window.location.hash}` : undefined);
+    } else if (error.response?.status === 401) {
+      localStorage.removeItem('qms_access_token');
+      emitSessionExpired(typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}${window.location.hash}` : undefined);
     }
     return Promise.reject(error);
   },

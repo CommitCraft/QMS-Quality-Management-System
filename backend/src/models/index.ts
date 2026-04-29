@@ -175,6 +175,7 @@ class CourseModel extends Model<InferAttributes<CourseModel>, InferCreationAttri
   declare category: string | null;
   declare instructor: string | null;
   declare status: string;
+  declare autoAssignToNewEmployee: boolean;
   declare enrollments?: CourseEnrollmentModel[];
 }
 
@@ -408,6 +409,12 @@ export const initModels = (sequelizeInstance: Sequelize) => {
       category: { type: DataTypes.STRING(100), allowNull: true },
       instructor: { type: DataTypes.STRING(150), allowNull: true },
       status: { type: DataTypes.ENUM('Active', 'Inactive'), allowNull: false, defaultValue: 'Active' },
+      autoAssignToNewEmployee: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+        field: 'auto_assign_to_new_employee',
+      },
     },
     { sequelize: sequelizeInstance, tableName: 'courses' },
   );

@@ -1,5 +1,5 @@
-import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { useCompanyProfile } from '../hooks/useCompanyProfile';
@@ -21,13 +21,36 @@ const EyeOffIcon = () => (
 );
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { login, isAuthenticated, loading: authLoading } = useAuth();
   const { profile } = useCompanyProfile();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const fromPath = useMemo(() => {
+    const stateFrom = (location.state as { from?: string } | null)?.from;
+    const queryFrom = searchParams.get('returnTo');
+    return stateFrom || queryFrom || '/dashboard';
+  }, [location.state, searchParams]);
+  const hasRedirectTarget = fromPath !== '/dashboard';
+
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      navigate(fromPath, { replace: true });
+    }
+  }, [fromPath, isAuthenticated, authLoading, navigate]);
+
+  if (authLoading) {
+    return <div className="text-sm text-steel-300">Checking session...</div>;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={fromPath} replace />;
+  }
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -41,11 +64,11 @@ const LoginPage = () => {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
       await login(username.trim(), password);
       toast.success('Welcome back!');
-      navigate('/dashboard');
+      navigate(fromPath, { replace: true });
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
       const msg =
@@ -53,7 +76,7 @@ const LoginPage = () => {
         'Invalid username or password. Please try again.';
       toast.error(msg);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -74,6 +97,11 @@ const LoginPage = () => {
         <p className="mt-2 text-sm text-steel-300">
           Enter your credentials to access the QMS dashboard.
         </p>
+        {hasRedirectTarget ? (
+          <div className="mt-4 rounded-2xl border border-accent-400/20 bg-accent-500/10 px-4 py-3 text-sm text-accent-100">
+            You were redirected from a protected page. After login, you will return to your original destination.
+          </div>
+        ) : null}
       </div>
 
       {/* Form */}
@@ -91,7 +119,7 @@ const LoginPage = () => {
             placeholder="Enter your username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            disabled={loading}
+            disabled={submitting}
           />
         </div>
 
@@ -109,7 +137,7 @@ const LoginPage = () => {
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
+              disabled={submitting}
             />
             <button
               type="button"
@@ -136,10 +164,10 @@ const LoginPage = () => {
         {/* Submit */}
         <button
           className="btn-primary w-full gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={loading}
+          disabled={submitting}
           type="submit"
         >
-          {loading ? (
+          {submitting ? (
             <>
               <svg
                 className="h-4 w-4 animate-spin"
