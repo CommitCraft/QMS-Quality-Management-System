@@ -9,9 +9,17 @@ interface DataTableProps {
   loading?: boolean;
   onEdit?: (row: TableRow) => void;
   onDelete?: (row: TableRow) => void;
+  onRowClick?: (row: TableRow) => void;
 }
 
-export const DataTable = ({ columns, rows, loading, onEdit, onDelete }: DataTableProps) => {
+export const DataTable = ({
+  columns,
+  rows,
+  loading,
+  onEdit,
+  onDelete,
+  onRowClick,
+}: DataTableProps) => {
   const colSpan = columns.length + (onEdit || onDelete ? 1 : 0);
 
   return (
@@ -48,7 +56,10 @@ export const DataTable = ({ columns, rows, loading, onEdit, onDelete }: DataTabl
               rows.map((row, index) => (
                 <tr
                   key={`${String(row.id ?? index)}`}
-                  className="transition hover:bg-[#f8fbfb]"
+                  onClick={() => onRowClick?.(row)}
+                  className={`transition hover:bg-[#f8fbfb] ${
+                    onRowClick ? 'cursor-pointer' : ''
+                  }`}
                 >
                   {columns.map((column) => (
                     <td
@@ -60,7 +71,10 @@ export const DataTable = ({ columns, rows, loading, onEdit, onDelete }: DataTabl
                   ))}
 
                   {(onEdit || onDelete) && (
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td
+                      className="whitespace-nowrap px-4 py-3"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <div className="flex flex-wrap gap-2">
                         {onEdit && (
                           <button

@@ -28,7 +28,7 @@ import MyCoursesPage from './pages/course/MyCoursesPage';
 import AssignCoursePage from './pages/course/AssignCoursePage';
 import CourseSummaryPage from './pages/course/CourseSummaryPage';
 import { LmsContentPage, LmsAssignmentsPage, LmsCheckingPage, LmsTestSeriesPage } from './pages/course';
-
+import CoursePlayerPage from './pages/course/CoursePlayerPage';
 const App = () => {
   return (
     <Routes>
@@ -122,6 +122,7 @@ const App = () => {
 
           <Route element={<ProtectedRoute requiredPermissions={["VIEW_MY_COURSES"]} />}>
             <Route path="/course/my-courses" element={<MyCoursesPage />} />
+            <Route path="/training/my-courses/:courseId" element={<CoursePlayerPage />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredPermissions={["MANAGE_TRAINING_ASSIGN_COURSE"]} />}>
