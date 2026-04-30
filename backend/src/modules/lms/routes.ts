@@ -352,7 +352,11 @@ assignmentsRouter.get(
   requirePermission('VIEW_TRAINING_COURSE'),
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const search = String(req.query.search || '').trim();
-    const items = await listAssignments(search || undefined);
+    const courseId = req.query.courseId ? Number(req.query.courseId) : undefined;
+    let items = await listAssignments(search || undefined);
+    if (courseId) {
+      items = items.filter((item: any) => item.courseId === courseId);
+    }
     const data = await Promise.all(items.map(async (assignment: any) => {
       const submitted = assignment.submissions?.filter((submission: any) => submission.status !== 'rejected').length || 0;
       const checked = assignment.submissions?.filter((submission: any) => submission.status === 'checked').length || 0;
@@ -479,8 +483,14 @@ assignmentsRouter.post(
 assignmentSubmissionsRouter.get(
   '/',
   requirePermission('VIEW_TRAINING_COURSE'),
-  asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
-    const data = await AssignmentSubmission.findAll({ include: [{ model: Assignment, as: 'assignment', include: [{ model: Course, as: 'course' }] }] });
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const courseId = req.query.courseId ? Number(req.query.courseId) : undefined;
+    let where = {};
+    if (courseId) {
+      const assignmentIds = await Assignment.findAll({ where: { courseId }, attributes: ['id'] }).then((assignments: any[]) => assignments.map((a) => a.id));
+      where = { assignmentId: { [Op.in]: assignmentIds } };
+    }
+    const data = await AssignmentSubmission.findAll({ where, include: [{ model: Assignment, as: 'assignment', include: [{ model: Course, as: 'course' }] }] });
     res.json({ success: true, data });
   }),
 );
@@ -629,8 +639,10 @@ assignmentSubmissionsRouter.get(
 testSeriesRouter.get(
   '/',
   requirePermission('VIEW_TRAINING_COURSE'),
-  asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
-    res.json({ success: true, data: await listTestSeries() });
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const courseId = req.query.courseId ? Number(req.query.courseId) : undefined;
+    const where = courseId ? { courseId } : {};
+    res.json({ success: true, data: await listTestSeries(where) });
   }),
 );
 

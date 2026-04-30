@@ -36,51 +36,18 @@ type CourseDetailResponse = {
   message?: string;
 };
 
-const fallbackModules: CourseModule[] = [
-  {
-    id: 1,
-    title: 'How to connect with mentors and Resolve doubts',
-    duration: '3m 41s',
-    progress: '1 / 1 lectures',
-    lectures: [{ id: 1, title: 'How to connect with mentors', completed: true }],
-  },
-  {
-    id: 2,
-    title: 'Intro to Web Development',
-    duration: '19m 1s',
-    progress: '3 / 3 lectures',
-    lectures: [
-      { id: 1, title: 'What is web development?', completed: true },
-      { id: 2, title: 'Frontend and backend overview', completed: true },
-      { id: 3, title: 'Development tools', completed: true },
-    ],
-  },
-  {
-    id: 16,
-    title: 'MERN Authentication & Security',
-    duration: '3h 43m',
-    progress: '17 / 17 lectures',
-    lectures: [
-      { id: 1, title: 'Intro and starter project', completed: true },
-      { id: 2, title: 'User routes, controller and model', completed: true },
-      { id: 3, title: 'Signing up a user and hashing their password', completed: true },
-      { id: 4, title: 'Email and password validation', completed: true },
-      { id: 5, title: 'JSON web tokens theory', completed: true },
-      { id: 6, title: 'Signing tokens', completed: true },
-      { id: 7, title: 'Logging user in', completed: true },
-      { id: 8, title: 'Creating react auth context', completed: true },
-      { id: 9, title: 'Login and signup forms', completed: true },
-      { id: 10, title: 'Making a useSignup hook', completed: true },
-      { id: 11, title: 'Making a useLogout hook', completed: true },
-      { id: 12, title: 'Making a useLogin hook', completed: true },
-      { id: 13, title: 'Updating the initial auth status', completed: true },
-      { id: 14, title: 'Protecting API routes', completed: true },
-      { id: 15, title: 'Having authorized requests', completed: true },
-      { id: 16, title: 'Protecting react routes', completed: true },
-      { id: 17, title: 'Assigning workouts to Users', completed: true },
-    ],
-  },
-];
+type LmsItem = {
+  id: number;
+  title: string;
+  status?: string;
+  description?: string;
+};
+
+type LmsResponse = {
+  success: boolean;
+  data?: LmsItem[];
+  message?: string;
+};
 
 const CoursePlayerPage = () => {
   const navigate = useNavigate();
@@ -94,6 +61,14 @@ const CoursePlayerPage = () => {
   const [expandedModuleId, setExpandedModuleId] = useState<number | null>(null);
   const [activeModuleId, setActiveModuleId] = useState<number | null>(null);
   const [activeLectureId, setActiveLectureId] = useState<number | null>(null);
+
+  // LMS sections state
+  const [courseContent, setCourseContent] = useState<LmsItem[]>([]);
+  const [assignments, setAssignments] = useState<LmsItem[]>([]);
+  const [submissions, setSubmissions] = useState<LmsItem[]>([]);
+  const [testSeries, setTestSeries] = useState<LmsItem[]>([]);
+  const [expandedLmsSection, setExpandedLmsSection] = useState<string | null>(null);
+  const [lmsLoading, setLmsLoading] = useState(false);
 
   const loadCourseDetail = async () => {
     if (!courseId) {
@@ -119,9 +94,7 @@ const CoursePlayerPage = () => {
         return;
       }
 
-      const backendModules = courseData.modules?.length
-        ? courseData.modules
-        : fallbackModules;
+      const backendModules = courseData.modules ?? [];
 
       setCourse(courseData);
       setModules(backendModules);
@@ -142,14 +115,11 @@ const CoursePlayerPage = () => {
       toast.error(responseMessage || 'Unable to load course detail');
 
       setCourse(null);
-      setModules(fallbackModules);
+      setModules([]);
 
-      const firstModule = fallbackModules[0];
-      const firstLecture = firstModule?.lectures?.[0];
-
-      setExpandedModuleId(firstModule?.id ?? null);
-      setActiveModuleId(firstModule?.id ?? null);
-      setActiveLectureId(firstLecture?.id ?? null);
+      setExpandedModuleId(null);
+      setActiveModuleId(null);
+      setActiveLectureId(null);
     } finally {
       setLoading(false);
     }
@@ -157,6 +127,41 @@ const CoursePlayerPage = () => {
 
   useEffect(() => {
     void loadCourseDetail();
+  }, [courseId]);
+
+  const loadLmsData = async () => {
+    if (!courseId) return;
+    
+    setLmsLoading(true);
+    try {
+      const [contentRes, assignmentsRes, submissionsRes, testsRes] = await Promise.allSettled([
+        api.get(`/courses/${courseId}/content`),
+        api.get(`/assignments?courseId=${courseId}`),
+        api.get(`/assignment-submissions?courseId=${courseId}`),
+        api.get(`/test-series?courseId=${courseId}`),
+      ]);
+
+      if (contentRes.status === 'fulfilled') {
+        setCourseContent(contentRes.value.data.data || []);
+      }
+      if (assignmentsRes.status === 'fulfilled') {
+        setAssignments(assignmentsRes.value.data.data || []);
+      }
+      if (submissionsRes.status === 'fulfilled') {
+        setSubmissions(submissionsRes.value.data.data || []);
+      }
+      if (testsRes.status === 'fulfilled') {
+        setTestSeries(testsRes.value.data.data || []);
+      }
+    } catch (error) {
+      // Silently fail for LMS data
+    } finally {
+      setLmsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadLmsData();
   }, [courseId]);
 
   const activeModule = useMemo(
@@ -386,6 +391,110 @@ const CoursePlayerPage = () => {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* LMS Content Section */}
+            <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+              <button
+                type="button"
+                onClick={() => setExpandedLmsSection(expandedLmsSection === 'content' ? null : 'content')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87]">📄 Content ({courseContent.length})</div>
+                <span className={`text-xs transition-transform ${expandedLmsSection === 'content' ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {expandedLmsSection === 'content' && (
+                <div className="flex flex-col gap-1.5 mt-2">
+                  {courseContent.length > 0 ? (
+                    courseContent.slice(0, 5).map((item) => (
+                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
+                        <div className="font-medium text-slate-900">{item.title}</div>
+                        {item.status && <div className="text-slate-600">{item.status}</div>}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-500">No content available</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* LMS Assignments Section */}
+            <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+              <button
+                type="button"
+                onClick={() => setExpandedLmsSection(expandedLmsSection === 'assignments' ? null : 'assignments')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87]">✎ Assignments ({assignments.length})</div>
+                <span className={`text-xs transition-transform ${expandedLmsSection === 'assignments' ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {expandedLmsSection === 'assignments' && (
+                <div className="flex flex-col gap-1.5 mt-2">
+                  {assignments.length > 0 ? (
+                    assignments.slice(0, 5).map((item) => (
+                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
+                        <div className="font-medium text-slate-900">{item.title}</div>
+                        {item.status && <div className="text-slate-600">{item.status}</div>}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-500">No assignments available</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* LMS Submissions Section */}
+            <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+              <button
+                type="button"
+                onClick={() => setExpandedLmsSection(expandedLmsSection === 'submissions' ? null : 'submissions')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87]">✓ Submissions ({submissions.length})</div>
+                <span className={`text-xs transition-transform ${expandedLmsSection === 'submissions' ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {expandedLmsSection === 'submissions' && (
+                <div className="flex flex-col gap-1.5 mt-2">
+                  {submissions.length > 0 ? (
+                    submissions.slice(0, 5).map((item) => (
+                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
+                        <div className="font-medium text-slate-900">{item.title}</div>
+                        {item.status && <div className="text-slate-600">{item.status}</div>}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-500">No submissions available</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* LMS Test Series Section */}
+            <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+              <button
+                type="button"
+                onClick={() => setExpandedLmsSection(expandedLmsSection === 'tests' ? null : 'tests')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87]">⚡ Tests ({testSeries.length})</div>
+                <span className={`text-xs transition-transform ${expandedLmsSection === 'tests' ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {expandedLmsSection === 'tests' && (
+                <div className="flex flex-col gap-1.5 mt-2">
+                  {testSeries.length > 0 ? (
+                    testSeries.slice(0, 5).map((item) => (
+                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
+                        <div className="font-medium text-slate-900">{item.title}</div>
+                        {item.status && <div className="text-slate-600">{item.status}</div>}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-500">No tests available</div>
+                  )}
+                </div>
+              )}
             </div>
 
             {modules.map((module) => {

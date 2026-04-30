@@ -53,4 +53,4 @@ export const listAssignments = async (search?: string) => Assignment.findAll({
   order: [['createdAt', 'DESC']],
 });
 
-export const listTestSeries = async () => TestSeries.findAll({ include: [{ model: Course, as: 'course' }, { model: TestQuestion, as: 'questions' }], order: [['createdAt', 'DESC']] });
+export const listTestSeries = async (where?: any) => TestSeries.findAll({ where, include: [{ model: Course, as: 'course' }, { model: TestQuestion, as: 'questions' }], order: [['createdAt', 'DESC']] });
