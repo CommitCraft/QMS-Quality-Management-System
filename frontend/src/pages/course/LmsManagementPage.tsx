@@ -127,8 +127,16 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
           break;
       }
       closeLmsModal();
-    } catch {
-      toast.error('Unable to save LMS item');
+    } catch (err) {
+      // show server error message when available
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e: any = err;
+      if (e && e.response && e.response.data) {
+        const msg = e.response.data.message || e.response.data.error || e.response.data || e.message;
+        toast.error(String(msg));
+      } else {
+        toast.error('Unable to save LMS item');
+      }
     } finally {
       setLmsSaving(false);
     }
@@ -147,8 +155,15 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
           await deleteTestSeries(item);
           break;
       }
-    } catch {
-      toast.error('Unable to delete item');
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e: any = err;
+      if (e && e.response && e.response.data) {
+        const msg = e.response.data.message || e.response.data.error || e.response.data || e.message;
+        toast.error(String(msg));
+      } else {
+        toast.error('Unable to delete item');
+      }
     }
   };
 

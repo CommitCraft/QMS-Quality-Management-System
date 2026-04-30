@@ -126,8 +126,8 @@ export const ContentModalForm = ({ form, courses, onChange }: ContentModalFormPr
           onChange={(e) => onChange('status', e.target.value)}
         >
           <option value="Draft">Draft</option>
-          <option value="Published">Published</option>
-          <option value="Archived">Archived</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
         </select>
       </div>
 

@@ -16,18 +16,59 @@ export const useLmsData = () => {
   const loadLmsData = useCallback(async () => {
     setLmsLoading(true);
     try {
-      const [summaryResponse, assignmentsResponse, submissionsResponse, testsResponse] = await Promise.all([
+      const results = await Promise.allSettled([
         lmsService.courseSummary(),
         lmsService.listAssignments(),
         lmsService.listSubmissions(),
         lmsService.listTestSeries(),
       ]);
 
-      setCourseSummary(summaryResponse.data || null);
-      setAssignmentRows((assignmentsResponse.data || []) as LmsItem[]);
-      setSubmissionRows((submissionsResponse.data || []) as LmsItem[]);
-      setTestSeriesRows((testsResponse.data || []) as LmsItem[]);
-    } catch {
+      const [summaryRes, assignmentsRes, submissionsRes, testsRes] = results;
+
+      if (summaryRes.status === 'fulfilled') {
+        setCourseSummary(summaryRes.value.data || null);
+      } else {
+        // Log the error for debugging
+        // eslint-disable-next-line no-console
+        console.error('courseSummary failed', summaryRes.reason);
+      }
+
+      if (assignmentsRes.status === 'fulfilled') {
+        setAssignmentRows((assignmentsRes.value.data || []) as LmsItem[]);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('listAssignments failed', assignmentsRes.reason);
+      }
+
+      if (submissionsRes.status === 'fulfilled') {
+        setSubmissionRows((submissionsRes.value.data || []) as LmsItem[]);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('listSubmissions failed', submissionsRes.reason);
+      }
+
+      if (testsRes.status === 'fulfilled') {
+        setTestSeriesRows((testsRes.value.data || []) as LmsItem[]);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('listTestSeries failed', testsRes.reason);
+      }
+
+      const panelNames = ['summary', 'assignments', 'submissions', 'testSeries'];
+      const failedPanels = results
+        .map((r, i) => ({ r, name: panelNames[i] }))
+        .filter(({ r }) => r.status === 'rejected')
+        .map(({ name }) => name);
+
+      if (failedPanels.length === panelNames.length) {
+        toast.error('Unable to load LMS panels');
+      } else if (failedPanels.length > 0) {
+        toast.error(`Unable to load: ${failedPanels.join(', ')}`);
+      }
+    } catch (err) {
+      // unexpected error
+      // eslint-disable-next-line no-console
+      console.error('loadLmsData error', err);
       toast.error('Unable to load LMS panels');
     } finally {
       setLmsLoading(false);

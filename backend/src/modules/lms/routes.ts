@@ -14,6 +14,11 @@ const toNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const normalizeEnum = (value: unknown, allowed: string[], fallback: string) => {
+  const s = typeof value === 'string' ? value.trim() : '';
+  return allowed.includes(s) ? s : fallback;
+};
+
 const buildSearchWhere = (search?: string, status?: string) => ({
   ...(search
     ? {
@@ -115,7 +120,7 @@ coursesRouter.post(
       title: String(payload.title).trim(),
       description: payload.description ? String(payload.description) : null,
       category: payload.category ? String(payload.category) : null,
-      status: (payload.status as string) || 'Draft',
+      status: normalizeEnum(payload.status, ['Draft', 'Active', 'Inactive'], 'Draft'),
       autoAssignToNewEmployee: toBool(payload.autoAssignNewEmployee ?? payload.autoAssignToNewEmployee),
     } as never);
     res.status(201).json({ success: true, data: course });
@@ -135,7 +140,7 @@ coursesRouter.put(
       title: payload.title ? String(payload.title).trim() : course.title,
       description: payload.description !== undefined ? String(payload.description || '') : course.description,
       category: payload.category !== undefined ? String(payload.category || '') : course.category,
-      status: (payload.status as string) || course.status,
+      status: normalizeEnum(payload.status, ['Draft', 'Active', 'Inactive'], course.status),
       autoAssignToNewEmployee: payload.autoAssignNewEmployee !== undefined ? toBool(payload.autoAssignNewEmployee) : course.autoAssignToNewEmployee,
     } as never);
     res.json({ success: true, data: course });
@@ -244,7 +249,7 @@ courseContentRouter.post(
       mimeType: file ? file.mimetype : payload.mimeType ? String(payload.mimeType) : null,
       displayOrder: payload.displayOrder ? toNumber(payload.displayOrder, 0) : Number(existingMax || 0) + 1,
       isRequired: toBool(payload.isRequired),
-      status: (payload.status as string) || 'Draft',
+      status: normalizeEnum(payload.status, ['Draft', 'Active', 'Inactive'], 'Draft'),
     } as never);
     res.status(201).json({ success: true, data: item });
   }),
@@ -273,7 +278,7 @@ courseContentRouter.put(
       mimeType: file ? file.mimetype : payload.mimeType !== undefined ? String(payload.mimeType || '') : item.mimeType,
       displayOrder: payload.displayOrder !== undefined ? toNumber(payload.displayOrder, item.displayOrder) : item.displayOrder,
       isRequired: payload.isRequired !== undefined ? toBool(payload.isRequired) : item.isRequired,
-      status: (payload.status as any) || item.status,
+      status: normalizeEnum(payload.status, ['Draft', 'Active', 'Inactive'], item.status),
     } as never);
     res.json({ success: true, data: item });
   }),
@@ -389,7 +394,7 @@ assignmentsRouter.post(
       attachmentFileName: attachment.attachmentFileName,
       attachmentFileSize: attachment.attachmentFileSize,
       attachmentMimeType: attachment.attachmentMimeType,
-      status: (payload.status as any) || 'Draft',
+      status: normalizeEnum(payload.status, ['Draft', 'Published', 'Closed'], 'Draft'),
     } as never);
     res.status(201).json({ success: true, data: item });
   }),
@@ -419,7 +424,7 @@ assignmentsRouter.put(
       attachmentFileName: attachment.attachmentFileName || item.attachmentFileName,
       attachmentFileSize: attachment.attachmentFileSize || item.attachmentFileSize,
       attachmentMimeType: attachment.attachmentMimeType || item.attachmentMimeType,
-      status: (payload.status as any) || item.status,
+      status: normalizeEnum(payload.status, ['Draft', 'Published', 'Closed'], item.status),
     } as never);
     res.json({ success: true, data: item });
   }),
@@ -656,7 +661,7 @@ testSeriesRouter.post(
       durationMinutes: toNumber(payload.durationMinutes),
       startDate: payload.startDate ? new Date(String(payload.startDate)) : null,
       endDate: payload.endDate ? new Date(String(payload.endDate)) : null,
-      status: (payload.status as any) || 'Draft',
+      status: normalizeEnum(payload.status, ['Draft', 'Active', 'Expired'], 'Draft'),
     } as never);
     res.status(201).json({ success: true, data: item });
   }),
@@ -681,7 +686,7 @@ testSeriesRouter.put(
       durationMinutes: payload.durationMinutes ? toNumber(payload.durationMinutes, item.durationMinutes) : item.durationMinutes,
       startDate: payload.startDate ? new Date(String(payload.startDate)) : item.startDate,
       endDate: payload.endDate ? new Date(String(payload.endDate)) : item.endDate,
-      status: (payload.status as any) || item.status,
+      status: normalizeEnum(payload.status, ['Draft', 'Active', 'Expired'], item.status),
     } as never);
     res.json({ success: true, data: item });
   }),

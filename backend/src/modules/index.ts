@@ -37,9 +37,9 @@ apiRouter.use('/logs', logsRoutes);
 apiRouter.use('/training', trainingRoutes);
 apiRouter.use('/courses', coursesRouter);
 apiRouter.use('/', courseContentRouter);
-apiRouter.use('/', assignmentsRouter);
-apiRouter.use('/', assignmentSubmissionsRouter);
-apiRouter.use('/', testSeriesRouter);
+apiRouter.use('/assignments', assignmentsRouter);
+apiRouter.use('/assignment-submissions', assignmentSubmissionsRouter);
+apiRouter.use('/test-series', testSeriesRouter);
 apiRouter.use('/', settingsRoutes);
 
 export default apiRouter;
