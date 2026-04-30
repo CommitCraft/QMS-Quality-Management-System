@@ -27,6 +27,7 @@ import CoursePage from './pages/course/CoursePage';
 import MyCoursesPage from './pages/course/MyCoursesPage';
 import AssignCoursePage from './pages/course/AssignCoursePage';
 import CourseSummaryPage from './pages/course/CourseSummaryPage';
+import { LmsContentPage, LmsAssignmentsPage, LmsCheckingPage, LmsTestSeriesPage } from './pages/course';
 
 const App = () => {
   return (
@@ -113,6 +114,10 @@ const App = () => {
 
           <Route element={<ProtectedRoute requiredPermissions={["VIEW_TRAINING_COURSE"]} />}>
             <Route path="/course/list" element={<CoursePage />} />
+            <Route path="/lms/content" element={<LmsContentPage />} />
+            <Route path="/lms/assignments" element={<LmsAssignmentsPage />} />
+            <Route path="/lms/checking" element={<LmsCheckingPage />} />
+            <Route path="/lms/test-series" element={<LmsTestSeriesPage />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredPermissions={["VIEW_MY_COURSES"]} />}>
