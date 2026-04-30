@@ -30,6 +30,57 @@ trainingRoutes.get(
   })
 );
 
+  // Get course enrollments (users assigned to a course)
+  trainingRoutes.get(
+    '/:courseId/enrollments',
+    authenticate,
+    asyncHandler(async (req: any, res: Response) => {
+      const { courseId } = req.params;
+    
+      if (!Number.isInteger(Number(courseId)) || Number(courseId) <= 0) {
+        res.status(400).json({ error: 'Invalid course ID' });
+        return;
+      }
+
+      const course = await Course.findByPk(courseId);
+      if (!course) {
+        res.status(404).json({ error: 'Course not found' });
+        return;
+      }
+
+      const enrollments = await CourseEnrollment.findAll({
+        where: { courseId: Number(courseId) },
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['id', 'name', 'username', 'email', 'departmentId'],
+            include: [
+              {
+                model: require('../../../models').Department,
+                as: 'department',
+                attributes: ['id', 'name'],
+              },
+            ],
+          },
+        ],
+      });
+
+      const users = enrollments.map((enrollment: any) => ({
+        id: enrollment.user.id,
+        name: enrollment.user.name,
+        username: enrollment.user.username,
+        email: enrollment.user.email,
+        departmentName: enrollment.user.department?.name,
+      }));
+
+      res.json({
+        success: true,
+        data: users,
+      });
+    })
+  );
+
 // Basic CRUD routes (GET /training, POST /training, PUT /training/:id, DELETE /training/:id)
 trainingRoutes.use('', createTrainingRouter());
 
