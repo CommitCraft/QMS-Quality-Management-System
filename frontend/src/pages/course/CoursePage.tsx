@@ -1,20 +1,31 @@
-import { Fragment, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AxiosError } from 'axios';
-import toast from 'react-hot-toast';
-import { api } from '../../services/api';
-import { CourseRow, CourseFormState, CourseResponse, DEFAULT_COURSE_FORM, formatDate } from './types';
-import { CourseFormModal } from './CourseFormModal';
-import { CourseActionMenu } from './CourseActionMenu';
+import { Fragment, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AxiosError } from "axios";
+import toast from "react-hot-toast";
+import { api } from "../../services/api";
+import {
+  CourseRow,
+  CourseFormState,
+  CourseResponse,
+  DEFAULT_COURSE_FORM,
+  formatDate,
+} from "./types";
+import { CourseFormModal } from "./CourseFormModal";
+import { CourseActionMenu } from "./CourseActionMenu";
 
 const CoursePage = () => {
   const navigate = useNavigate();
 
   // Course state
   const [rows, setRows] = useState<CourseRow[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+  const [meta, setMeta] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -34,7 +45,7 @@ const CoursePage = () => {
   const loadCourses = async () => {
     setLoading(true);
     try {
-      const response = await api.get<CourseResponse>('/training', {
+      const response = await api.get<CourseResponse>("/training", {
         params: { search: search || undefined, page, limit: 10 },
       });
       setRows(response.data.data || []);
@@ -44,7 +55,7 @@ const CoursePage = () => {
     } catch (error) {
       const status = (error as AxiosError)?.response?.status;
       if (status && status !== 404) {
-        toast.error('Unable to load courses');
+        toast.error("Unable to load courses");
       }
       setRows([]);
     } finally {
@@ -61,35 +72,37 @@ const CoursePage = () => {
   const openEdit = (row: CourseRow) => {
     setEditing(row);
     setForm({
-      code: row.code || '',
-      title: row.title || '',
-      description: row.description || '',
-      duration: String(row.duration ?? ''),
-      category: row.category || '',
-      instructor: row.instructor || '',
-      status: (row.status as 'Active' | 'Inactive') || 'Active',
-      autoAssignToNewEmployee: Boolean(row.autoAssignToNewEmployee ?? row.autoAssign ?? true),
+      code: row.code || "",
+      title: row.title || "",
+      description: row.description || "",
+      duration: String(row.duration ?? ""),
+      category: row.category || "",
+      instructor: row.instructor || "",
+      status: (row.status as "Active" | "Inactive") || "Active",
+      autoAssignToNewEmployee: Boolean(
+        row.autoAssignToNewEmployee ?? row.autoAssign ?? true,
+      ),
     });
     setModalOpen(true);
   };
 
   const handleDelete = async (row: CourseRow) => {
-    if (!window.confirm(`Delete ${row.title || 'this course'}?`)) {
+    if (!window.confirm(`Delete ${row.title || "this course"}?`)) {
       return;
     }
 
     try {
       await api.delete(`/training/${row.id}`);
-      toast.success('Course deleted');
+      toast.success("Course deleted");
       await loadCourses();
     } catch {
-      toast.error('Unable to delete course');
+      toast.error("Unable to delete course");
     }
   };
 
   const handleSave = async () => {
     if (!form.code.trim() || !form.title.trim()) {
-      toast.error('Code and title are required');
+      toast.error("Code and title are required");
       return;
     }
 
@@ -108,15 +121,15 @@ const CoursePage = () => {
     try {
       if (editing) {
         await api.put(`/training/${editing.id}`, payload);
-        toast.success('Course updated');
+        toast.success("Course updated");
       } else {
-        await api.post('/training', payload);
-        toast.success('Course created');
+        await api.post("/training", payload);
+        toast.success("Course created");
       }
       setModalOpen(false);
       await loadCourses();
     } catch {
-      toast.error('Unable to save course');
+      toast.error("Unable to save course");
     } finally {
       setSaving(false);
     }
@@ -126,7 +139,10 @@ const CoursePage = () => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  const navigateLmsManagement = (view: 'content' | 'assignments' | 'checking' | 'testSeries', courseId: number) => {
+  const navigateLmsManagement = (
+    view: "content" | "assignments" | "checking" | "testSeries",
+    courseId: number,
+  ) => {
     navigate(`/lms/${view}?courseId=${courseId}`);
   };
 
@@ -136,7 +152,9 @@ const CoursePage = () => {
       <div className="flex flex-col gap-4 rounded-[10px] border border-[#b8c7c7] bg-[#f8fbfb] p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="me-auto">
           <div className="flex items-center gap-2">
-            <span className="mb-0 text-[22px] font-semibold text-slate-900">Courses</span>
+            <span className="mb-0 text-[22px] font-semibold text-slate-900">
+              Courses
+            </span>
             <button
               type="button"
               className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-blue-600 transition hover:bg-blue-50"
@@ -177,9 +195,6 @@ const CoursePage = () => {
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="bg-[#eef4f6] text-slate-700">
-                  <th className="sticky left-0 z-[101] w-[72px] whitespace-nowrap border-b border-[#d9e0e4] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em]">
-                    
-                  </th>
                   <th className="w-[320px] whitespace-nowrap border-b border-[#d9e0e4] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em]">
                     Title
                   </th>
@@ -194,7 +209,6 @@ const CoursePage = () => {
                   </th>
                 </tr>
                 <tr className="bg-white">
-                  <th className="sticky left-0 z-[102] border-b border-[#eef2f5] px-4 py-2"></th>
                   <th className="border-b border-[#eef2f5] px-4 py-2">
                     <input
                       className="h-[34px] w-full rounded-md border border-[#d1d5db] bg-white px-3 text-[13px] outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
@@ -215,47 +229,94 @@ const CoursePage = () => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
+                    <td
+                      colSpan={4}
+                      className="px-4 py-12 text-center text-slate-500"
+                    >
                       Loading courses...
                     </td>
                   </tr>
                 ) : rows.length ? (
                   rows.map((row, index) => {
                     const isExpanded = expandedId === row.id;
-                    const autoAssign = Boolean(row.autoAssignToNewEmployee ?? row.autoAssign ?? false);
+                    const autoAssign = Boolean(
+                      row.autoAssignToNewEmployee ?? row.autoAssign ?? false,
+                    );
 
                     return (
                       <Fragment key={row.id}>
                         <tr
-                          className={`${index % 2 === 0 ? 'even-row' : 'odd-row'} border-b border-[#eef2f5] transition hover:bg-[#f8fbfb]`}
+                          className={`${index % 2 === 0 ? "even-row" : "odd-row"} cursor-pointer border-b border-[#eef2f5] transition hover:bg-[#f8fbfb] ${
+                            isExpanded ? "bg-blue-50/40" : ""
+                          }`}
+                          onClick={() =>
+                            setExpandedId((current) =>
+                              current === row.id ? null : row.id,
+                            )
+                          }
+                          title={
+                            isExpanded
+                              ? "Click to collapse details"
+                              : "Click to expand details"
+                          }
                         >
-                          <td className="sticky left-0 z-[100] whitespace-nowrap bg-inherit px-4 py-3 align-top">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d1d5db] bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
-                                onClick={() => setExpandedId((current) => (current === row.id ? null : row.id))}
-                                title={isExpanded ? 'Collapse' : 'Expand'}
+                          <td className="whitespace-nowrap px-4 py-3 align-top text-[14px] text-slate-800">
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-base font-semibold shadow-sm transition-all duration-200 ${
+                                  isExpanded
+                                    ? "rotate-90 border-blue-600 bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-blue-200"
+                                    : "border-slate-200 bg-white text-slate-500 group-hover:scale-105 group-hover:border-blue-200 group-hover:bg-blue-50 group-hover:text-blue-700"
+                                }`}
+                                aria-hidden="true"
                               >
-                                <span className={`text-sm leading-none transition ${isExpanded ? 'rotate-90' : ''}`}>›</span>
-                              </button>
+                                ›
+                              </span>
+
+                              <div>
+                                <div className="font-medium text-slate-900">
+                                  {row.title || "-"}
+                                </div>
+                                <div className="mt-1">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                                      isExpanded
+                                        ? "border-blue-200 bg-blue-50 text-blue-700"
+                                        : "border-slate-200 bg-slate-50 text-slate-600"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-block h-1.5 w-1.5 rounded-full ${
+                                        isExpanded
+                                          ? "bg-blue-600"
+                                          : "bg-slate-400"
+                                      }`}
+                                    />
+                                    {isExpanded
+                                      ? "Click row to collapse"
+                                      : "Click row to view details"}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3 align-top text-[14px] text-slate-800">
-                            <div className="font-medium text-slate-900">{row.title || '-'}</div>
-                          </td>
+
                           <td className="whitespace-nowrap px-4 py-3 align-top text-[14px] text-slate-800">
                             {formatDate(row.createdAt)}
                           </td>
+
                           <td className="whitespace-nowrap px-4 py-3 align-top">
                             <span
                               className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${
-                                autoAssign ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                                autoAssign
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-rose-50 text-rose-700"
                               }`}
                             >
-                              {autoAssign ? 'Yes' : 'No'}
+                              {autoAssign ? "Yes" : "No"}
                             </span>
                           </td>
+
                           <td className="whitespace-nowrap px-4 py-3 align-top text-right">
                             <div className="relative inline-block text-left">
                               <button
@@ -264,21 +325,33 @@ const CoursePage = () => {
                                 title="Course actions"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  setOpenActionId((current) => (current === row.id ? null : row.id));
+                                  setOpenActionId((current) =>
+                                    current === row.id ? null : row.id,
+                                  );
                                 }}
                               >
                                 <span>Actions</span>
-                                <span className="text-base leading-none">▾</span>
+                                <span className="text-base leading-none">
+                                  ▾
+                                </span>
                               </button>
 
                               <CourseActionMenu
                                 isOpen={openActionId === row.id}
                                 row={row}
                                 onEdit={() => openEdit(row)}
-                                onManageContent={() => navigateLmsManagement('content', row.id)}
-                                onManageAssignments={() => navigateLmsManagement('assignments', row.id)}
-                                onManageChecking={() => navigateLmsManagement('checking', row.id)}
-                                onManageTestSeries={() => navigateLmsManagement('testSeries', row.id)}
+                                onManageContent={() =>
+                                  navigateLmsManagement("content", row.id)
+                                }
+                                onManageAssignments={() =>
+                                  navigateLmsManagement("assignments", row.id)
+                                }
+                                onManageChecking={() =>
+                                  navigateLmsManagement("checking", row.id)
+                                }
+                                onManageTestSeries={() =>
+                                  navigateLmsManagement("testSeries", row.id)
+                                }
                                 onDelete={() => void handleDelete(row)}
                                 onClose={() => setOpenActionId(null)}
                               />
@@ -288,27 +361,43 @@ const CoursePage = () => {
 
                         {isExpanded ? (
                           <tr className="border-b border-[#eef2f5] bg-white">
-                            <td colSpan={5} className="px-4 py-4">
+                            <td colSpan={4} className="px-4 py-4">
                               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <div>
-                                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Code</div>
-                                  <div className="mt-1 text-sm font-medium text-slate-900">{row.code || '-'}</div>
+                                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                                    Code
+                                  </div>
+                                  <div className="mt-1 text-sm font-medium text-slate-900">
+                                    {row.code || "-"}
+                                  </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Duration</div>
-                                  <div className="mt-1 text-sm font-medium text-slate-900">{row.duration ? `${row.duration} min` : '-'}</div>
+                                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                                    Duration
+                                  </div>
+                                  <div className="mt-1 text-sm font-medium text-slate-900">
+                                    {row.duration ? `${row.duration} min` : "-"}
+                                  </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Instructor</div>
-                                  <div className="mt-1 text-sm font-medium text-slate-900">{row.instructor || '-'}</div>
+                                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                                    Instructor
+                                  </div>
+                                  <div className="mt-1 text-sm font-medium text-slate-900">
+                                    {row.instructor || "-"}
+                                  </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Category</div>
-                                  <div className="mt-1 text-sm font-medium text-slate-900">{row.category || '-'}</div>
+                                  <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                                    Category
+                                  </div>
+                                  <div className="mt-1 text-sm font-medium text-slate-900">
+                                    {row.category || "-"}
+                                  </div>
                                 </div>
                               </div>
                               <div className="mt-4 rounded-md border border-[#d9e0e4] bg-[#f8fbfb] p-4 text-sm text-slate-700">
-                                {row.description || 'No description provided.'}
+                                {row.description || "No description provided."}
                               </div>
                             </td>
                           </tr>
@@ -318,7 +407,10 @@ const CoursePage = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-sm font-medium text-slate-500">
+                    <td
+                      colSpan={4}
+                      className="px-4 py-12 text-center text-sm font-medium text-slate-500"
+                    >
                       No courses found.
                     </td>
                   </tr>
@@ -327,22 +419,31 @@ const CoursePage = () => {
 
               <tfoot>
                 <tr>
-                  <td colSpan={5} className="border-t border-[#d9e0e4] bg-white px-4 py-4">
+                  <td
+                    colSpan={4}
+                    className="border-t border-[#d9e0e4] bg-white px-4 py-4"
+                  >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <button
                         type="button"
                         className="inline-flex items-center justify-center gap-2 rounded-md border border-[#d1d5db] bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:bg-[#f3f4f6] disabled:text-slate-400"
                         disabled={page <= 1}
-                        onClick={() => setPage((current) => Math.max(current - 1, 1))}
+                        onClick={() =>
+                          setPage((current) => Math.max(current - 1, 1))
+                        }
                       >
                         ‹ Previous
                       </button>
 
                       <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                         <span>Page</span>
-                        <span className="inline-flex min-w-[42px] items-center justify-center rounded-md border border-blue-100 bg-blue-50 px-3 py-2 font-bold text-blue-700">{meta.page}</span>
+                        <span className="inline-flex min-w-[42px] items-center justify-center rounded-md border border-blue-100 bg-blue-50 px-3 py-2 font-bold text-blue-700">
+                          {meta.page}
+                        </span>
                         <span>of</span>
-                        <span className="inline-flex min-w-[42px] items-center justify-center rounded-md border border-[#d9e0e4] bg-white px-3 py-2 font-bold text-slate-800">{meta.totalPages}</span>
+                        <span className="inline-flex min-w-[42px] items-center justify-center rounded-md border border-[#d9e0e4] bg-white px-3 py-2 font-bold text-slate-800">
+                          {meta.totalPages}
+                        </span>
                       </div>
 
                       <button
@@ -356,8 +457,15 @@ const CoursePage = () => {
                     </div>
 
                     <div className="mt-3 text-center text-xs font-medium text-slate-500">
-                      Showing <span className="font-semibold text-slate-800">{rows.length}</span> of{' '}
-                      <span className="font-semibold text-slate-800">{meta.total}</span> records
+                      Showing{" "}
+                      <span className="font-semibold text-slate-800">
+                        {rows.length}
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-semibold text-slate-800">
+                        {meta.total}
+                      </span>{" "}
+                      records
                     </div>
                   </td>
                 </tr>
