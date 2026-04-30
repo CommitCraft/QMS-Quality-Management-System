@@ -8,9 +8,6 @@ import { assignCourseValidators } from '../validation/training.validation';
 
 const trainingRoutes = Router();
 
-// Basic CRUD routes (GET /training, POST /training, PUT /training/:id, DELETE /training/:id)
-trainingRoutes.use('', createTrainingRouter());
-
 // Get user's enrolled courses
 trainingRoutes.get(
   '/my-courses',
@@ -32,6 +29,9 @@ trainingRoutes.get(
     });
   })
 );
+
+// Basic CRUD routes (GET /training, POST /training, PUT /training/:id, DELETE /training/:id)
+trainingRoutes.use('', createTrainingRouter());
 
 // Assign courses to users (bulk)
 trainingRoutes.post(

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { Op, WhereOptions } from 'sequelize';
 import { AppError, authenticate, requirePermission, validateRequest, AuthenticatedRequest } from '../../common/middleware';
-import { logActivity, parsePagination } from '../../common/utils';
+import { asyncHandler, logActivity, parsePagination } from '../../common/utils';
 
 interface CrudRouteOptions {
 	path: string;
@@ -53,7 +53,11 @@ const createCrudController = (options: CrudRouteOptions) => {
 	};
 
 	const getOne = async (req: AuthenticatedRequest, res: any) => {
-		const item = await options.model.findByPk(Number(req.params.id));
+		const id = Number(req.params.id);
+		if (!Number.isInteger(id) || id <= 0) {
+			throw new AppError(`Invalid ${options.entityName} ID`, 400);
+		}
+		const item = await options.model.findByPk(id);
 		if (!item) {
 			throw new AppError(`${options.entityName} not found`, 404);
 		}
@@ -75,16 +79,20 @@ const createCrudController = (options: CrudRouteOptions) => {
 	};
 
 	const update = async (req: AuthenticatedRequest, res: any) => {
+		const id = Number(req.params.id);
+		if (!Number.isInteger(id) || id <= 0) {
+			throw new AppError(`Invalid ${options.entityName} ID`, 400);
+		}
 		const payload = options.transformUpdate ? await options.transformUpdate(req.body as Record<string, unknown>, req) : (req.body as Record<string, unknown>);
-		const [updated] = await options.model.update(payload as Record<string, unknown>, { where: { id: Number(req.params.id) } });
+		const [updated] = await options.model.update(payload as Record<string, unknown>, { where: { id } });
 		if (!updated) {
 			throw new AppError(`${options.entityName} not found`, 404);
 		}
-		const item = await options.model.findByPk(Number(req.params.id));
+		const item = await options.model.findByPk(id);
 		await logActivity({
 			userId: req.user?.id,
 			entity: options.entityName,
-			entityId: Number(req.params.id),
+			entityId: id,
 			action: 'update',
 			description: `Updated ${options.entityName}`,
 			meta: payload,
@@ -93,14 +101,18 @@ const createCrudController = (options: CrudRouteOptions) => {
 	};
 
 	const remove = async (req: AuthenticatedRequest, res: any) => {
-		const deleted = await options.model.destroy({ where: { id: Number(req.params.id) } });
+		const id = Number(req.params.id);
+		if (!Number.isInteger(id) || id <= 0) {
+			throw new AppError(`Invalid ${options.entityName} ID`, 400);
+		}
+		const deleted = await options.model.destroy({ where: { id } });
 		if (!deleted) {
 			throw new AppError(`${options.entityName} not found`, 404);
 		}
 		await logActivity({
 			userId: req.user?.id,
 			entity: options.entityName,
-			entityId: Number(req.params.id),
+			entityId: id,
 			action: 'delete',
 			description: `Deleted ${options.entityName}`,
 		});
@@ -117,11 +129,11 @@ export const buildCrudRouter = (options: CrudRouteOptions) => {
 	const controller = createCrudController(options);
 
 	router.use(authenticate);
-	router.get('/', requirePermission(`${options.permissionBase}.read`), controller.list);
-	router.get('/:id', requirePermission(`${options.permissionBase}.read`), controller.getOne);
-	router.post('/', options.createValidators || [], validateRequest, requirePermission(`${options.permissionBase}.write`), controller.create);
-	router.put('/:id', options.updateValidators || [], validateRequest, requirePermission(`${options.permissionBase}.write`), controller.update);
-	router.delete('/:id', requirePermission(`${options.permissionBase}.delete`), controller.remove);
+	router.get('/', requirePermission(`${options.permissionBase}.read`), asyncHandler(controller.list));
+	router.get('/:id', requirePermission(`${options.permissionBase}.read`), asyncHandler(controller.getOne));
+	router.post('/', options.createValidators || [], validateRequest, requirePermission(`${options.permissionBase}.write`), asyncHandler(controller.create));
+	router.put('/:id', options.updateValidators || [], validateRequest, requirePermission(`${options.permissionBase}.write`), asyncHandler(controller.update));
+	router.delete('/:id', requirePermission(`${options.permissionBase}.delete`), asyncHandler(controller.remove));
 	return router;
 };
 

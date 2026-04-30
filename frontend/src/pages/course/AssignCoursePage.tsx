@@ -78,20 +78,7 @@ const AssignCoursePage = () => {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Assign Course"
-        description="Assign training courses to users and track their progress."
-        action={
-          <button
-            className="btn-primary"
-            onClick={() => void handleAssign()}
-            disabled={saving || selectedUserIds.size === 0}
-          >
-            {saving ? 'Assigning...' : 'Assign Selected'}
-          </button>
-        }
-      />
-
+    
       <div className="rounded-[10px] border border-[#d9e0e4] bg-white p-4 shadow-sm">
         <label className="block">
           <span className="mb-2 block text-[13px] font-semibold text-slate-800">Select Course</span>

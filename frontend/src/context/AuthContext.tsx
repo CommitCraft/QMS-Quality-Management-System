@@ -76,7 +76,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(response.user || null);
     },
     logout: async () => {
-      await authService.logout();
+      try {
+        await authService.logout();
+      } catch (error) {
+        // Logout should still complete locally if the API is offline.
+        // eslint-disable-next-line no-console
+        console.warn('Logout request failed; clearing local session anyway.', error);
+      }
       localStorage.removeItem('qms_access_token');
       setUser(null);
     },

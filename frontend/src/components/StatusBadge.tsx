@@ -12,6 +12,7 @@ const colorMap: Record<string, string> = {
   active: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
   inactive: 'bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/30',
   published: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
+  'not started': 'bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/30',
   open: 'bg-red-500/15 text-red-200 ring-1 ring-red-500/30',
   closed: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30',
   pending: 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-500/30',

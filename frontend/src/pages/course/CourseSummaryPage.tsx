@@ -55,18 +55,6 @@ const CourseSummaryPage = () => {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Course Summary"
-        description="Overview of training courses and enrollments across the organization."
-        action={
-          <button
-            className="btn-secondary"
-            onClick={() => window.location.reload()}
-          >
-            Refresh
-          </button>
-        }
-      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-[10px] border border-[#d9e0e4] bg-white p-5 shadow-sm">
