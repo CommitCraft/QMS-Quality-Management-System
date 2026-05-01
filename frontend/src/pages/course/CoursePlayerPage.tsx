@@ -41,6 +41,9 @@ type LmsItem = {
   title: string;
   status?: string;
   description?: string;
+  contentType?: string;
+  fileUrl?: string | null;
+  externalUrl?: string | null;
 };
 
 type LmsResponse = {
@@ -67,8 +70,67 @@ const CoursePlayerPage = () => {
   const [assignments, setAssignments] = useState<LmsItem[]>([]);
   const [submissions, setSubmissions] = useState<LmsItem[]>([]);
   const [testSeries, setTestSeries] = useState<LmsItem[]>([]);
+  const [selectedContent, setSelectedContent] = useState<LmsItem | null>(null);
   const [expandedLmsSection, setExpandedLmsSection] = useState<string | null>(null);
   const [lmsLoading, setLmsLoading] = useState(false);
+
+  const resolveMediaUrl = (url?: string | null) => {
+    if (!url) {
+      return null;
+    }
+
+    if (/^https?:\/\//i.test(url)) {
+      return url;
+    }
+
+    const apiBase = api.defaults.baseURL || window.location.origin;
+
+    try {
+      const origin = new URL(apiBase, window.location.origin).origin;
+      const normalizedPath = url.startsWith('/') ? url : `/${url}`;
+      return `${origin}${normalizedPath}`;
+    } catch {
+      return url;
+    }
+  };
+
+  const isEmbedVideoUrl = (url?: string | null) => {
+    if (!url) {
+      return false;
+    }
+
+    return /youtube\.com|youtu\.be|vimeo\.com/i.test(url);
+  };
+
+  const toEmbedUrl = (url?: string | null) => {
+    if (!url) {
+      return null;
+    }
+
+    if (!isEmbedVideoUrl(url)) {
+      return resolveMediaUrl(url);
+    }
+
+    const matchedYouTube = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
+    if (matchedYouTube?.[1]) {
+      return `https://www.youtube.com/embed/${matchedYouTube[1]}`;
+    }
+
+    const matchedVimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+    if (matchedVimeo?.[1]) {
+      return `https://player.vimeo.com/video/${matchedVimeo[1]}`;
+    }
+
+    return url;
+  };
+
+  const isDirectVideoFile = (url?: string | null) => {
+    if (!url) {
+      return false;
+    }
+
+    return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+  };
 
   const loadCourseDetail = async () => {
     if (!courseId) {
@@ -174,6 +236,32 @@ const CoursePlayerPage = () => {
     [activeModule, activeLectureId],
   );
 
+  const activeContentUrl = useMemo(() => {
+    if (!selectedContent) {
+      return null;
+    }
+
+    return resolveMediaUrl(selectedContent.fileUrl || selectedContent.externalUrl);
+  }, [selectedContent]);
+
+  const activePlayerUrl = activeContentUrl || resolveMediaUrl(activeLecture?.videoUrl) || null;
+  const activePlayerTitle = selectedContent?.title || activeLecture?.title || 'Lecture';
+  const activePlayerType = selectedContent?.contentType?.toLowerCase() || (activeLecture?.videoUrl ? 'video' : null);
+  const activeEmbedUrl = toEmbedUrl(activePlayerUrl);
+
+  const getContentMeta = (item: LmsItem) => {
+    const contentType = item.contentType?.toLowerCase();
+
+    if (contentType === 'video') return { icon: '▶', label: 'Video', playsInline: true };
+    if (contentType === 'pdf') return { icon: '📄', label: 'PDF', playsInline: false };
+    if (contentType === 'doc') return { icon: '📝', label: 'Document', playsInline: false };
+    if (contentType === 'ppt') return { icon: '📊', label: 'Presentation', playsInline: false };
+    if (contentType === 'image') return { icon: '🖼', label: 'Image', playsInline: false };
+    if (contentType === 'link') return { icon: '🔗', label: 'Link', playsInline: true };
+
+    return { icon: '▶', label: 'Content', playsInline: false };
+  };
+
   const courseProgress = Math.min(
     100,
     Math.max(0, Number(course?.progressPercentage || 0)),
@@ -190,9 +278,27 @@ const CoursePlayerPage = () => {
   };
 
   const handleLectureClick = (moduleId: number, lectureId: number) => {
+    setSelectedContent(null);
     setExpandedModuleId(moduleId);
     setActiveModuleId(moduleId);
     setActiveLectureId(lectureId);
+  };
+
+  const handleContentClick = (item: LmsItem) => {
+    const playableUrl = resolveMediaUrl(item.fileUrl || item.externalUrl);
+    const meta = getContentMeta(item);
+
+    if (!playableUrl) {
+      toast.error('This content does not have a playable link');
+      return;
+    }
+
+    if (!meta.playsInline) {
+      window.open(playableUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setSelectedContent(item);
   };
 
   if (loading) {
@@ -263,14 +369,34 @@ const CoursePlayerPage = () => {
           <div className="rounded-md overflow-visible">
             <div className="relative w-full">
               <div className="flex flex-col w-full aspect-video mx-auto bg-[#0f0f0f] md:rounded-xl overflow-hidden select-none font-sans">
-                {activeLecture?.videoUrl ? (
-                  <video
-                    key={activeLecture.videoUrl}
-                    className="w-full h-full object-contain cursor-pointer"
-                    controls
-                    playsInline
-                    src={activeLecture.videoUrl}
-                  />
+                {activeEmbedUrl ? (
+                  isEmbedVideoUrl(activeEmbedUrl) ? (
+                    <iframe
+                      key={activeEmbedUrl}
+                      className="h-full w-full border-0"
+                      src={activeEmbedUrl}
+                      title={activePlayerTitle}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : isDirectVideoFile(activeEmbedUrl) ? (
+                    <video
+                      key={activeEmbedUrl}
+                      className="w-full h-full object-contain cursor-pointer"
+                      controls
+                      playsInline
+                      preload="metadata"
+                      src={activeEmbedUrl}
+                      onError={() => toast.error('Unable to load video. Check the file URL or server access.')}
+                    />
+                  ) : (
+                    <iframe
+                      key={activeEmbedUrl}
+                      className="h-full w-full border-0 bg-white"
+                      src={activeEmbedUrl}
+                      title={activePlayerTitle}
+                    />
+                  )
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/70">
                     Video not available
@@ -284,7 +410,7 @@ const CoursePlayerPage = () => {
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-[18px] font-bold text-[#800080]">
-                  {courseTitle}
+                  {activePlayerTitle}
                 </h1>
 
                 <p className="text-xs text-slate-500">
@@ -292,9 +418,21 @@ const CoursePlayerPage = () => {
                 </p>
               </div>
 
-              <span className="w-fit rounded-full border border-purple-200 bg-white px-3 py-1 text-xs font-semibold text-[#800080]">
-                {courseStatus}
-              </span>
+              <div className="flex items-center gap-2">
+                {selectedContent ? (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedContent(null)}
+                    className="w-fit rounded-full border border-purple-200 bg-white px-3 py-1 text-xs font-semibold text-[#800080]"
+                  >
+                    Back to lecture
+                  </button>
+                ) : null}
+
+                <span className="w-fit rounded-full border border-purple-200 bg-white px-3 py-1 text-xs font-semibold text-[#800080]">
+                  {selectedContent ? `Playing ${activePlayerType === 'video' ? 'Video' : 'LMS Content'}` : courseStatus}
+                </span>
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -397,6 +535,7 @@ const CoursePlayerPage = () => {
             <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
               <button
                 type="button"
+                aria-expanded={expandedLmsSection === 'content'}
                 onClick={() => setExpandedLmsSection(expandedLmsSection === 'content' ? null : 'content')}
                 className="flex items-center justify-between w-full text-left"
               >
@@ -407,10 +546,26 @@ const CoursePlayerPage = () => {
                 <div className="flex flex-col gap-1.5 mt-2">
                   {courseContent.length > 0 ? (
                     courseContent.slice(0, 5).map((item) => (
-                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
-                        <div className="font-medium text-slate-900">{item.title}</div>
-                        {item.status && <div className="text-slate-600">{item.status}</div>}
-                      </div>
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleContentClick(item)}
+                        className={`text-left text-xs p-2 rounded border transition ${selectedContent?.id === item.id ? 'bg-purple-50 border-purple-300' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] ring-1 ring-slate-200">
+                            {getContentMeta(item).icon}
+                          </span>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-slate-900 truncate">{item.title}</div>
+                            <div className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-600">
+                              <span>{item.status || 'Ready'}</span>
+                              <span>{getContentMeta(item).label}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
                     ))
                   ) : (
                     <div className="text-xs text-slate-500">No content available</div>
