@@ -29,6 +29,8 @@ type CourseDetail = {
   status?: string;
   progressPercentage?: number;
   modules?: CourseModule[];
+  courseModules?: CourseModule[];
+  sections?: CourseModule[];
 };
 
 type CourseDetailResponse = {
@@ -189,6 +191,40 @@ const CoursePlayerPage = () => {
 
   const getSubmissionFileUrl = (item: LmsItem) => resolveMediaUrl(item.uploadedFileUrl || item.submissionUrl || item.fileUrl || item.externalUrl || item.attachmentUrl);
 
+  const normalizeModules = (courseData: CourseDetail): CourseModule[] => {
+    const rawModules = (
+      (Array.isArray(courseData.modules) && courseData.modules) ||
+      (Array.isArray(courseData.courseModules) && courseData.courseModules) ||
+      (Array.isArray(courseData.sections) && courseData.sections) ||
+      []
+    ) as any[];
+
+    return rawModules
+      .map((module: any, moduleIndex: number) => {
+        const rawLectures =
+          (Array.isArray(module?.lectures) && module.lectures) ||
+          (Array.isArray(module?.items) && module.items) ||
+          (Array.isArray(module?.contents) && module.contents) ||
+          [];
+
+        const normalizedLectures: Lecture[] = rawLectures.map((lecture: any, lectureIndex: number) => ({
+          id: Number(lecture?.id ?? `${moduleIndex + 1}${lectureIndex + 1}`),
+          title: String(lecture?.title ?? lecture?.name ?? `Lecture ${lectureIndex + 1}`),
+          videoUrl: lecture?.videoUrl || lecture?.fileUrl || lecture?.externalUrl || null,
+          completed: Boolean(lecture?.completed),
+        }));
+
+        return {
+          id: Number(module?.id ?? moduleIndex + 1),
+          title: String(module?.title ?? module?.name ?? `Module ${moduleIndex + 1}`),
+          duration: module?.duration ? String(module.duration) : undefined,
+          progress: module?.progress ? String(module.progress) : undefined,
+          lectures: normalizedLectures,
+        } as CourseModule;
+      })
+      .filter((module) => module.title && Array.isArray(module.lectures));
+  };
+
   // Determine assignment stage based on submission status
   const getAssignmentStage = (assignment: LmsItem) => {
     if (!assignment.status) return 'not_submitted';
@@ -347,7 +383,7 @@ const CoursePlayerPage = () => {
         return;
       }
 
-      const backendModules = courseData.modules ?? [];
+      const backendModules = normalizeModules(courseData);
 
       setCourse(courseData);
       setModules(backendModules);
@@ -417,6 +453,34 @@ const CoursePlayerPage = () => {
     void loadLmsData();
   }, [courseId]);
 
+  useEffect(() => {
+    if (modules.length > 0 || courseContent.length === 0) {
+      return;
+    }
+
+    const fallbackLectures: Lecture[] = courseContent.map((item, index) => ({
+      id: Number(item.id ?? index + 1),
+      title: item.title || `Content ${index + 1}`,
+      videoUrl: item.fileUrl || item.externalUrl || null,
+      completed: false,
+    }));
+
+    const fallbackModule: CourseModule = {
+      id: 1,
+      title: 'Course Content',
+      duration: undefined,
+      progress: undefined,
+      lectures: fallbackLectures,
+    };
+
+    setModules([fallbackModule]);
+    if (!activeModuleId) {
+      setExpandedModuleId(fallbackModule.id);
+      setActiveModuleId(fallbackModule.id);
+      setActiveLectureId(fallbackLectures[0]?.id ?? null);
+    }
+  }, [modules.length, courseContent, activeModuleId]);
+
   const activeModule = useMemo(
     () => modules.find((module) => module.id === activeModuleId),
     [modules, activeModuleId],
@@ -427,17 +491,9 @@ const CoursePlayerPage = () => {
     [activeModule, activeLectureId],
   );
 
-  const activeContentUrl = useMemo(() => {
-    if (!selectedContent) {
-      return null;
-    }
-
-    return resolveMediaUrl(selectedContent.fileUrl || selectedContent.externalUrl);
-  }, [selectedContent]);
-
-  const activePlayerUrl = activeContentUrl || resolveMediaUrl(activeLecture?.videoUrl) || null;
-  const activePlayerTitle = selectedContent?.title || activeLecture?.title || 'Lecture';
-  const activePlayerType = selectedContent?.contentType?.toLowerCase() || (activeLecture?.videoUrl ? 'video' : null);
+  const activePlayerUrl = resolveMediaUrl(activeLecture?.videoUrl) || null;
+  const activePlayerTitle = activeLecture?.title || 'Lecture';
+  const activePlayerType = activeLecture?.videoUrl ? 'video' : null;
   const activeEmbedUrl = toEmbedUrl(activePlayerUrl);
 
   const formatDueDate = (dateString?: string | null) => {
@@ -733,18 +789,10 @@ const CoursePlayerPage = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                {selectedContent ? (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedContent(null)}
-                    className="w-fit rounded-full border border-purple-200 bg-white px-3 py-1 text-xs font-semibold text-[#800080]"
-                  >
-                    Back to lecture
-                  </button>
-                ) : null}
-
                 <span className="w-fit rounded-full border border-purple-200 bg-white px-3 py-1 text-xs font-semibold text-[#800080]">
-                  {selectedContent ? `Playing ${activePlayerType === 'video' ? 'Video' : 'LMS Content'}` : courseStatus}
+                  {activePlayerUrl
+                    ? `Playing ${activePlayerType === 'video' ? 'Video' : 'LMS Content'}`
+                    : 'No playable content'}
                 </span>
               </div>
             </div>
@@ -821,6 +869,7 @@ const CoursePlayerPage = () => {
               </h3>
             </div>
           </div>
+          
         </div>
 
         <aside className="h-full overflow-y-auto max-lg:pb-4">
@@ -832,21 +881,11 @@ const CoursePlayerPage = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col items-start justify-between gap-3 mt-2.5">
-                <div className="w-fit flex items-center gap-2 max-[580px]:gap-1.75">
-                  <button className="flex py-2 px-3.5 justify-center items-center rounded-[46px] text-xs font-medium cursor-pointer transition-colors border border-[#8c008c] bg-[rgba(161,5,161,0.07)] text-[#8c008c] hover:bg-[rgba(161,5,161,0.12)]">
-                    Notes
-                  </button>
-
-                  <button className="flex py-2 px-3.5 justify-center items-center rounded-[46px] text-xs font-medium cursor-pointer transition-colors border border-[#8c008c] bg-[rgba(161,5,161,0.07)] text-[#8c008c] hover:bg-[rgba(161,5,161,0.12)]">
-                    Certificate & Refund
-                  </button>
-                </div>
-              </div>
-            </div>
+              
+            
 
             {/* LMS Content Section */}
-            <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+            {/* <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
               <button
                 type="button"
                 aria-expanded={expandedLmsSection === 'content'}
@@ -886,7 +925,139 @@ const CoursePlayerPage = () => {
                   )}
                 </div>
               )}
-            </div>
+            </div> */}
+
+            
+
+            {/* LMS Submissions Section */}
+            {/* <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+              <button
+                type="button"
+                onClick={() => setExpandedLmsSection(expandedLmsSection === 'submissions' ? null : 'submissions')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87]">✓ Submissions ({submissions.length})</div>
+                <span className={`text-xs transition-transform ${expandedLmsSection === 'submissions' ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {expandedLmsSection === 'submissions' && (
+                <div className="flex flex-col gap-1.5 mt-2">
+                  {submissions.length > 0 ? (
+                    submissions.slice(0, 5).map((item) => (
+                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
+                        <div className="font-medium text-slate-900">{item.title}</div>
+                        {item.status && <div className="text-slate-600">{item.status}</div>}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-500">No submissions available</div>
+                  )}
+                </div>
+              )}
+            </div> */}
+
+            
+
+            {modules.map((module) => {
+              const expanded = expandedModuleId === module.id;
+              const active = module.id === activeModule?.id;
+
+              return (
+                <div
+                  key={module.id}
+                  className={[
+                    'flex flex-col items-start gap-2.5 w-full min-h-[70px] rounded-xl border border-[#eaeaea] max-[580px]:gap-[12.5px]',
+                    active ? 'bg-[#fdf8ff]' : 'bg-white',
+                  ].join(' ')}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleToggleModule(module.id)}
+                    className={[
+                      'w-full flex flex-col cursor-pointer items-start p-[8px_16px] max-[580px]:p-[14px_16px_7px_14px] text-left',
+                      active ? 'bg-[#fbeffc] rounded-t-xl' : '',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span
+                        className={[
+                          'text-base font-semibold opacity-[0.87] max-w-[calc(100%-30px)] truncate',
+                          active ? 'text-[#800080]' : 'text-[#5c375c]',
+                        ].join(' ')}
+                      >
+                        Module {module.id}: {module.title}
+                      </span>
+
+                      <span
+                        className={[
+                          'flex h-6 w-6 items-center justify-center rounded-full border text-xs transition',
+                          expanded
+                            ? 'rotate-180 border-purple-200 bg-purple-50 text-purple-700'
+                            : 'border-slate-200 bg-white text-slate-500',
+                        ].join(' ')}
+                      >
+                        ↓
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-[5px] text-black/60 text-xs max-[580px]:text-[13px]">
+                      <span>{module.duration || '-'}</span>
+                      <div className="w-px h-[17px] bg-[#555]" />
+                      <span>
+                        {module.progress ||
+                          `${module.lectures.filter((lecture) => lecture.completed).length} / ${module.lectures.length} lectures`}
+                      </span>
+                    </div>
+                  </button>
+
+                  {expanded ? (
+                    <div className="p-[0_8px_13px_8px] flex flex-col items-start gap-[13px] flex-1 w-full">
+                      {module.lectures.map((lecture, lectureIndex) => {
+                        const lectureActive =
+                          lecture.id === activeLectureId &&
+                          module.id === activeModule?.id;
+
+                        return (
+                          <button
+                            key={`${module.id}-${lecture.id}`}
+                            type="button"
+                            onClick={() => handleLectureClick(module.id, lecture.id)}
+                            className={[
+                              'flex items-center justify-between w-full cursor-pointer group rounded-lg px-2 py-1.5 transition text-left',
+                              lectureActive ? 'bg-purple-50' : 'hover:bg-purple-50/60',
+                            ].join(' ')}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-purple-200 text-[10px] text-[#992e9d]">
+                                ▶
+                              </div>
+
+                              <div
+                                className={[
+                                  'text-[13px] opacity-[0.87] group-hover:text-[#992e9d] transition-colors truncate',
+                                  lectureActive
+                                    ? 'font-semibold text-[#992e9d]'
+                                    : 'font-normal text-[#666]',
+                                ].join(' ')}
+                              >
+                                {lectureIndex + 1}. {lecture.title}
+                              </div>
+                            </div>
+
+                            <input
+                              type="checkbox"
+                              className="w-[18px] h-[18px] rounded cursor-pointer accent-[#38A333] shrink-0"
+                              checked={Boolean(lecture.completed)}
+                              readOnly
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
 
             {/* LMS Assignments Section - Consolidated Smart Cards */}
             <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
@@ -1091,32 +1262,6 @@ const CoursePlayerPage = () => {
               )}
             </div>
 
-            {/* LMS Submissions Section */}
-            {/* <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
-              <button
-                type="button"
-                onClick={() => setExpandedLmsSection(expandedLmsSection === 'submissions' ? null : 'submissions')}
-                className="flex items-center justify-between w-full text-left"
-              >
-                <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87]">✓ Submissions ({submissions.length})</div>
-                <span className={`text-xs transition-transform ${expandedLmsSection === 'submissions' ? 'rotate-180' : ''}`}>▼</span>
-              </button>
-              {expandedLmsSection === 'submissions' && (
-                <div className="flex flex-col gap-1.5 mt-2">
-                  {submissions.length > 0 ? (
-                    submissions.slice(0, 5).map((item) => (
-                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
-                        <div className="font-medium text-slate-900">{item.title}</div>
-                        {item.status && <div className="text-slate-600">{item.status}</div>}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-xs text-slate-500">No submissions available</div>
-                  )}
-                </div>
-              )}
-            </div> */}
-
             {/* LMS Test Series Section */}
             <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
               <button
@@ -1143,107 +1288,8 @@ const CoursePlayerPage = () => {
               )}
             </div>
 
-            {modules.map((module) => {
-              const expanded = expandedModuleId === module.id;
-              const active = module.id === activeModule?.id;
-
-              return (
-                <div
-                  key={module.id}
-                  className={[
-                    'flex flex-col items-start gap-2.5 w-full min-h-[70px] rounded-xl border border-[#eaeaea] max-[580px]:gap-[12.5px]',
-                    active ? 'bg-[#fdf8ff]' : 'bg-white',
-                  ].join(' ')}
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleToggleModule(module.id)}
-                    className={[
-                      'w-full flex flex-col cursor-pointer items-start p-[8px_16px] max-[580px]:p-[14px_16px_7px_14px] text-left',
-                      active ? 'bg-[#fbeffc] rounded-t-xl' : '',
-                    ].join(' ')}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span
-                        className={[
-                          'text-base font-semibold opacity-[0.87] max-w-[calc(100%-30px)] truncate',
-                          active ? 'text-[#800080]' : 'text-[#5c375c]',
-                        ].join(' ')}
-                      >
-                        Module {module.id}: {module.title}
-                      </span>
-
-                      <span
-                        className={[
-                          'flex h-6 w-6 items-center justify-center rounded-full border text-xs transition',
-                          expanded
-                            ? 'rotate-180 border-purple-200 bg-purple-50 text-purple-700'
-                            : 'border-slate-200 bg-white text-slate-500',
-                        ].join(' ')}
-                      >
-                        ↓
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-[5px] text-black/60 text-xs max-[580px]:text-[13px]">
-                      <span>{module.duration || '-'}</span>
-                      <div className="w-px h-[17px] bg-[#555]" />
-                      <span>
-                        {module.progress ||
-                          `${module.lectures.filter((lecture) => lecture.completed).length} / ${module.lectures.length} lectures`}
-                      </span>
-                    </div>
-                  </button>
-
-                  {expanded ? (
-                    <div className="p-[0_8px_13px_8px] flex flex-col items-start gap-[13px] flex-1 w-full">
-                      {module.lectures.map((lecture, lectureIndex) => {
-                        const lectureActive =
-                          lecture.id === activeLectureId &&
-                          module.id === activeModule?.id;
-
-                        return (
-                          <button
-                            key={`${module.id}-${lecture.id}`}
-                            type="button"
-                            onClick={() => handleLectureClick(module.id, lecture.id)}
-                            className={[
-                              'flex items-center justify-between w-full cursor-pointer group rounded-lg px-2 py-1.5 transition text-left',
-                              lectureActive ? 'bg-purple-50' : 'hover:bg-purple-50/60',
-                            ].join(' ')}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-purple-200 text-[10px] text-[#992e9d]">
-                                ▶
-                              </div>
-
-                              <div
-                                className={[
-                                  'text-[13px] opacity-[0.87] group-hover:text-[#992e9d] transition-colors truncate',
-                                  lectureActive
-                                    ? 'font-semibold text-[#992e9d]'
-                                    : 'font-normal text-[#666]',
-                                ].join(' ')}
-                              >
-                                {lectureIndex + 1}. {lecture.title}
-                              </div>
-                            </div>
-
-                            <input
-                              type="checkbox"
-                              className="w-[18px] h-[18px] rounded cursor-pointer accent-[#38A333] shrink-0"
-                              checked={Boolean(lecture.completed)}
-                              readOnly
-                              onClick={(event) => event.stopPropagation()}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+          </div>
+          
           </div>
         </aside>
       </div>
