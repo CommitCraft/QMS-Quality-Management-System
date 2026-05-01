@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Modal } from '../../components/Modal';
 import { api } from '../../services/api';
 
 type Lecture = {
@@ -38,12 +39,32 @@ type CourseDetailResponse = {
 
 type LmsItem = {
   id: number;
+  assignmentId?: number;
   title: string;
   status?: string;
   description?: string;
+  dueDate?: string | null;
+  maxMarks?: number | null;
+  passingMarks?: number | null;
+  feedback?: string | null;
+  submittedAt?: string | null;
+  marksObtained?: number | null;
+  fileName?: string | null;
+  submissionUrl?: string | null;
+  uploadedFileUrl?: string | null;
   contentType?: string;
   fileUrl?: string | null;
   externalUrl?: string | null;
+  attachmentUrl?: string | null;
+  assignment?: {
+    id?: number;
+    title?: string;
+    description?: string;
+    dueDate?: string | null;
+    maxMarks?: number | null;
+    passingMarks?: number | null;
+    attachmentUrl?: string | null;
+  };
 };
 
 type LmsResponse = {
@@ -73,6 +94,14 @@ const CoursePlayerPage = () => {
   const [selectedContent, setSelectedContent] = useState<LmsItem | null>(null);
   const [expandedLmsSection, setExpandedLmsSection] = useState<string | null>(null);
   const [lmsLoading, setLmsLoading] = useState(false);
+  const [assignmentSubmitOpen, setAssignmentSubmitOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<LmsItem | null>(null);
+  const [assignmentSubmissionText, setAssignmentSubmissionText] = useState('');
+  const [assignmentSubmissionUrl, setAssignmentSubmissionUrl] = useState('');
+  const [assignmentSubmissionFile, setAssignmentSubmissionFile] = useState<File | null>(null);
+  const [assignmentSubmitting, setAssignmentSubmitting] = useState(false);
+  const [viewSubmissionOpen, setViewSubmissionOpen] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<LmsItem | null>(null);
 
   const resolveMediaUrl = (url?: string | null) => {
     if (!url) {
@@ -131,6 +160,168 @@ const CoursePlayerPage = () => {
 
     return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
   };
+
+  const getAssignmentStatusMeta = (status?: string) => {
+    const normalizedStatus = (status || '').toLowerCase();
+
+    if (normalizedStatus === 'submitted' || normalizedStatus === 'under_review' || normalizedStatus === 'pending') {
+      return { label: 'Pending', dotClass: 'bg-amber-500', badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200' };
+    }
+
+    if (normalizedStatus === 'checked' || normalizedStatus === 'approved') {
+      return { label: 'Approved', dotClass: 'bg-emerald-500', badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200' };
+    }
+
+    if (normalizedStatus === 'rejected' || normalizedStatus === 'resubmission_required') {
+      return { label: 'Rejected', dotClass: 'bg-red-500', badgeClass: 'bg-red-50 text-red-700 border border-red-200' };
+    }
+
+    if (normalizedStatus === 'draft') {
+      return { label: 'Draft', dotClass: 'bg-slate-400', badgeClass: 'bg-slate-50 text-slate-700 border border-slate-200' };
+    }
+
+    return {
+      label: status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending',
+      dotClass: 'bg-slate-400',
+      badgeClass: 'bg-slate-50 text-slate-700 border border-slate-200',
+    };
+  };
+
+  const getSubmissionFileUrl = (item: LmsItem) => resolveMediaUrl(item.uploadedFileUrl || item.submissionUrl || item.fileUrl || item.externalUrl || item.attachmentUrl);
+
+  // Determine assignment stage based on submission status
+  const getAssignmentStage = (assignment: LmsItem) => {
+    if (!assignment.status) return 'not_submitted';
+    
+    const normalizedStatus = assignment.status.toLowerCase();
+    
+    if (normalizedStatus === 'approved' || normalizedStatus === 'checked') {
+      return 'approved';
+    }
+    if (normalizedStatus === 'rejected' || normalizedStatus === 'resubmission_required') {
+      return assignment.feedback ? 'feedback_received' : 'under_review';
+    }
+    if (normalizedStatus === 'submitted' || normalizedStatus === 'under_review' || normalizedStatus === 'pending') {
+      return 'under_review';
+    }
+    
+    return 'not_submitted';
+  };
+
+  // Get stage-specific status label
+  const getStageLabelAndStyle = (stage: string) => {
+    switch (stage) {
+      case 'not_submitted':
+        return { 
+          label: 'Not Submitted', 
+          dotClass: 'bg-slate-400', 
+          badgeClass: 'bg-slate-50 text-slate-700 border border-slate-200'
+        };
+      case 'under_review':
+        return { 
+          label: 'Under Review', 
+          dotClass: 'bg-amber-500', 
+          badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200'
+        };
+      case 'feedback_received':
+        return { 
+          label: 'Needs Revision', 
+          dotClass: 'bg-red-500', 
+          badgeClass: 'bg-red-50 text-red-700 border border-red-200'
+        };
+      case 'approved':
+        return { 
+          label: 'Approved', 
+          dotClass: 'bg-emerald-500', 
+          badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        };
+      default:
+        return { 
+          label: 'Pending', 
+          dotClass: 'bg-slate-400', 
+          badgeClass: 'bg-slate-50 text-slate-700 border border-slate-200'
+        };
+    }
+  };
+
+  // Check if assignment is approved (no resubmit allowed)
+  const isAssignmentApproved = (stage: string) => stage === 'approved';
+
+  const getAssignmentRefId = (item: LmsItem) => {
+    if (typeof item.assignmentId === 'number') return item.assignmentId;
+    if (typeof item.assignment?.id === 'number') return item.assignment.id;
+    return item.id;
+  };
+
+  // Merge assignments and submissions into single consolidated list
+  const mergedAssignments = useMemo(() => {
+    const merged: (LmsItem & { stage: string })[] = [];
+    const latestSubmissionByAssignment = new Map<number, LmsItem>();
+
+    submissions
+      .slice()
+      .sort((a, b) => {
+        const aTime = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+        const bTime = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+        if (aTime !== bTime) {
+          return bTime - aTime;
+        }
+        return b.id - a.id;
+      })
+      .forEach((submission) => {
+        const assignmentRefId = getAssignmentRefId(submission);
+        if (!latestSubmissionByAssignment.has(assignmentRefId)) {
+          latestSubmissionByAssignment.set(assignmentRefId, submission);
+        }
+      });
+    
+    // Start with all assignments
+    assignments.forEach((assignment) => {
+      const submission = latestSubmissionByAssignment.get(assignment.id);
+      const assignmentFromSubmission = submission?.assignment;
+      const stage = getAssignmentStage(submission || assignment);
+      
+      merged.push({
+        ...assignment,
+        ...(assignmentFromSubmission || {}),
+        ...submission,
+        id: assignment.id,
+        stage,
+        // Preserve assignment display fields from assignment first, then included assignment object, then submission fallback
+        title: assignment.title || assignmentFromSubmission?.title || submission?.title || 'Assignment',
+        description: assignment.description || assignmentFromSubmission?.description || submission?.description,
+        dueDate: assignment.dueDate || assignmentFromSubmission?.dueDate || submission?.dueDate,
+        maxMarks: assignment.maxMarks || assignmentFromSubmission?.maxMarks || submission?.maxMarks,
+        passingMarks: assignment.passingMarks || assignmentFromSubmission?.passingMarks || submission?.passingMarks,
+        attachmentUrl: assignment.attachmentUrl || assignmentFromSubmission?.attachmentUrl || submission?.attachmentUrl,
+      });
+    });
+
+    // Include submissions whose assignment is not present in assignments list
+    latestSubmissionByAssignment.forEach((submission, assignmentRefId) => {
+      if (merged.some((item) => item.id === assignmentRefId)) {
+        return;
+      }
+
+      const assignmentFromSubmission = submission.assignment;
+      const stage = getAssignmentStage(submission);
+
+      merged.push({
+        ...submission,
+        ...(assignmentFromSubmission || {}),
+        id: assignmentRefId,
+        title: assignmentFromSubmission?.title || submission.title || `Assignment #${assignmentRefId}`,
+        description: assignmentFromSubmission?.description || submission.description,
+        dueDate: assignmentFromSubmission?.dueDate || submission.dueDate,
+        maxMarks: assignmentFromSubmission?.maxMarks || submission.maxMarks,
+        passingMarks: assignmentFromSubmission?.passingMarks || submission.passingMarks,
+        attachmentUrl: assignmentFromSubmission?.attachmentUrl || submission.attachmentUrl,
+        stage,
+      });
+    });
+    
+    return merged;
+  }, [assignments, submissions]);
 
   const loadCourseDetail = async () => {
     if (!courseId) {
@@ -249,6 +440,43 @@ const CoursePlayerPage = () => {
   const activePlayerType = selectedContent?.contentType?.toLowerCase() || (activeLecture?.videoUrl ? 'video' : null);
   const activeEmbedUrl = toEmbedUrl(activePlayerUrl);
 
+  const formatDueDate = (dateString?: string | null) => {
+    if (!dateString) return null;
+    try {
+      const date = new Date(dateString);
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      if (date.toDateString() === today.toDateString()) {
+        return 'Today';
+      }
+      if (date.toDateString() === tomorrow.toDateString()) {
+        return 'Tomorrow';
+      }
+      
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const formatSubmittedAt = (dateString?: string | null) => {
+    if (!dateString) return '-';
+
+    try {
+      return new Date(dateString).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
   const getContentMeta = (item: LmsItem) => {
     const contentType = item.contentType?.toLowerCase();
 
@@ -299,6 +527,92 @@ const CoursePlayerPage = () => {
     }
 
     setSelectedContent(item);
+  };
+
+  const handleAssignmentView = (item: LmsItem) => {
+    const assignmentUrl = resolveMediaUrl(item.attachmentUrl || item.uploadedFileUrl || item.submissionUrl || item.fileUrl || item.externalUrl);
+
+    if (assignmentUrl) {
+      window.open(assignmentUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    window.open(`/lms/assignments?courseId=${courseId}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const openAssignmentSubmitModal = (item: LmsItem) => {
+    setSelectedAssignment(item);
+    setAssignmentSubmissionText('');
+    setAssignmentSubmissionUrl('');
+    setAssignmentSubmissionFile(null);
+    setAssignmentSubmitOpen(true);
+  };
+
+  const openSubmissionViewModal = (item: LmsItem) => {
+    setSelectedSubmission(item);
+    setViewSubmissionOpen(true);
+  };
+
+  const closeSubmissionViewModal = () => {
+    setViewSubmissionOpen(false);
+    setSelectedSubmission(null);
+  };
+
+  const closeAssignmentSubmitModal = () => {
+    setAssignmentSubmitOpen(false);
+    setSelectedAssignment(null);
+    setAssignmentSubmissionText('');
+    setAssignmentSubmissionUrl('');
+    setAssignmentSubmissionFile(null);
+  };
+
+  const handleAssignmentSubmit = async () => {
+    if (!selectedAssignment) {
+      return;
+    }
+
+    const hasFile = Boolean(assignmentSubmissionFile);
+    const hasUrl = Boolean(assignmentSubmissionUrl.trim());
+    const hasText = Boolean(assignmentSubmissionText.trim());
+
+    if (!hasFile && !hasUrl && !hasText) {
+      toast.error('Add text, URL, or file before submitting');
+      return;
+    }
+
+    setAssignmentSubmitting(true);
+    try {
+      if (hasFile && assignmentSubmissionFile) {
+        const formData = new FormData();
+        formData.append('file', assignmentSubmissionFile);
+        if (assignmentSubmissionText.trim()) {
+          formData.append('submissionText', assignmentSubmissionText.trim());
+        }
+        if (assignmentSubmissionUrl.trim()) {
+          formData.append('submissionUrl', assignmentSubmissionUrl.trim());
+        }
+
+        await api.post(`/assignment-submissions/assignments/${selectedAssignment.id}/submit-file`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        await api.post(`/assignment-submissions/assignments/${selectedAssignment.id}/submit`, {
+          submissionType: hasUrl ? 'url' : 'text',
+          submissionText: assignmentSubmissionText.trim() || undefined,
+          submissionUrl: assignmentSubmissionUrl.trim() || undefined,
+        });
+      }
+
+      toast.success('Assignment submitted successfully');
+      closeAssignmentSubmitModal();
+      await loadLmsData();
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+      const responseMessage = axiosError.response?.data?.message || axiosError.response?.data?.error;
+      toast.error(responseMessage || 'Unable to submit assignment');
+    } finally {
+      setAssignmentSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -574,25 +888,202 @@ const CoursePlayerPage = () => {
               )}
             </div>
 
-            {/* LMS Assignments Section */}
+            {/* LMS Assignments Section - Consolidated Smart Cards */}
             <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
               <button
                 type="button"
-                onClick={() => setExpandedLmsSection(expandedLmsSection === 'assignments' ? null : 'assignments')}
+                onClick={() => {
+                  const nextSection = expandedLmsSection === 'assignments' ? null : 'assignments';
+                  setExpandedLmsSection(nextSection);
+                  if (nextSection === 'assignments') {
+                    void loadLmsData();
+                  }
+                }}
                 className="flex items-center justify-between w-full text-left"
               >
-                <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87]">✎ Assignments ({assignments.length})</div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87] truncate">✎ Assignments</div>
+                  <span className="rounded-full border border-[#eadcf0] bg-[#f8f2fb] px-2 py-0.5 text-[10px] font-semibold text-[#800080]">
+                    {mergedAssignments.length}
+                  </span>
+                </div>
                 <span className={`text-xs transition-transform ${expandedLmsSection === 'assignments' ? 'rotate-180' : ''}`}>▼</span>
               </button>
               {expandedLmsSection === 'assignments' && (
-                <div className="flex flex-col gap-1.5 mt-2">
-                  {assignments.length > 0 ? (
-                    assignments.slice(0, 5).map((item) => (
-                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
-                        <div className="font-medium text-slate-900">{item.title}</div>
-                        {item.status && <div className="text-slate-600">{item.status}</div>}
-                      </div>
-                    ))
+                <div className="mt-2 flex flex-col gap-3">
+                  {mergedAssignments.length > 0 ? (
+                    mergedAssignments.slice(0, 5).map((item) => {
+                      const stageLabel = getStageLabelAndStyle(item.stage);
+                      const isApproved = isAssignmentApproved(item.stage);
+                      const hasSubmittedFile = getSubmissionFileUrl(item);
+                      const isFeedbackReceived = item.stage === 'feedback_received';
+                      const isUnderReview = item.stage === 'under_review';
+                      const isNotSubmitted = item.stage === 'not_submitted';
+                      
+                      return (
+                        <div key={`assignment-${item.id}`} className="w-full rounded-xl border border-[#eaeaea] bg-white p-3 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+                          {/* Title and Description */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-semibold text-[#5c375c]">{item.title}</div>
+                              {item.description && (
+                                <div className="mt-1 line-clamp-2 text-xs text-black/55">{item.description}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className={`inline-flex h-2.5 w-2.5 rounded-full ${stageLabel.dotClass}`} />
+                            </div>
+                          </div>
+
+                          {/* Metadata: Due Date and Marks */}
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-black/50">
+                            {item.dueDate && <span>📅 {formatDueDate(item.dueDate)}</span>}
+                            {item.maxMarks ? <span>• {item.maxMarks} Marks</span> : null}
+                            {item.submittedAt && !isNotSubmitted && <span>• Submitted {formatSubmittedAt(item.submittedAt)}</span>}
+                          </div>
+
+                          {/* Status Badge */}
+                          {/* <div className="mt-2">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${stageLabel.badgeClass}`}>
+                              {stageLabel.label}
+                            </span>
+                          </div> */}
+
+                          {/* Submitted File Section - Show only if submitted */}
+                          {/* {!isNotSubmitted && hasSubmittedFile && (
+                            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                              <div className="min-w-0">
+                                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Submitted File</div>
+                                <div className="truncate text-xs text-slate-700">
+                                  {item.fileName || 'View submitted attachment'}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleAssignmentView(item)}
+                                className="flex shrink-0 items-center justify-center rounded-[46px] border border-[#8c008c] bg-[rgba(161,5,161,0.07)] px-3.5 py-2 text-xs font-medium text-[#8c008c] transition-colors hover:bg-[rgba(161,5,161,0.12)]"
+                              >
+                                View Submitted
+                              </button>
+                            </div>
+                          )} */}
+
+                          {/* Feedback Section - Show only if feedback exists and not approved */}
+                          {/* {item.feedback && (
+                            <div className={`mt-3 rounded-lg border p-2.5 ${
+                              isFeedbackReceived 
+                                ? 'border-red-200 bg-red-50' 
+                                : 'border-emerald-200 bg-emerald-50'
+                            }`}>
+                              <div className={`text-[10px] font-semibold ${
+                                isFeedbackReceived 
+                                  ? 'text-red-700' 
+                                  : 'text-emerald-700'
+                              }`}>
+                                {isFeedbackReceived ? '❌ Feedback' : '✓ Feedback'}
+                              </div>
+                              <div className={`mt-1 text-xs ${
+                                isFeedbackReceived 
+                                  ? 'text-red-600' 
+                                  : 'text-emerald-600'
+                              }`}>
+                                {item.feedback}
+                              </div>
+                            </div>
+                          )} */}
+
+                          {/* Action Buttons - Conditional based on stage */}
+                          <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                            {/* Not Submitted: Show View Details + Submit Assignment */}
+                            {isNotSubmitted && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAssignmentView(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-[#8c008c] bg-[rgba(161,5,161,0.07)] px-3.5 py-2 text-xs font-medium text-[#8c008c] transition-colors hover:bg-[rgba(161,5,161,0.12)]"
+                                >
+                                  View Details
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openAssignmentSubmitModal(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-[#800080] bg-[#902190] px-3.5 py-2 text-xs font-medium text-white transition-colors hover:bg-[#7a1c7a]"
+                                >
+                                  Submit Assignment
+                                </button>
+                              </>
+                            )}
+
+                            {/* Under Review: Show View Submitted + Resubmit */}
+                            {isUnderReview && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAssignmentView(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-[#8c008c] bg-[rgba(161,5,161,0.07)] px-3.5 py-2 text-xs font-medium text-[#8c008c] transition-colors hover:bg-[rgba(161,5,161,0.12)]"
+                                >
+                                  View Submitted
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openAssignmentSubmitModal(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-[#800080] bg-[#902190] px-3.5 py-2 text-xs font-medium text-white transition-colors hover:bg-[#7a1c7a]"
+                                >
+                                  Resubmit
+                                </button>
+                              </>
+                            )}
+
+                            {/* Feedback Received (Not Approved): Show View Submitted + View Feedback + Resubmit */}
+                            {isFeedbackReceived && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAssignmentView(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-[#8c008c] bg-[rgba(161,5,161,0.07)] px-3.5 py-2 text-xs font-medium text-[#8c008c] transition-colors hover:bg-[rgba(161,5,161,0.12)]"
+                                >
+                                  View Submitted
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openSubmissionViewModal(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-red-600 bg-red-50 px-3.5 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"
+                                >
+                                  View Feedback
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openAssignmentSubmitModal(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-red-600 bg-red-50 px-3.5 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"
+                                >
+                                  Resubmit
+                                </button>
+                              </>
+                            )}
+
+                            {/* Approved: Show View Submitted + View Feedback (NO Submit, NO Resubmit - Locked) */}
+                            {isApproved && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAssignmentView(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-[#8c008c] bg-[rgba(161,5,161,0.07)] px-3.5 py-2 text-xs font-medium text-[#8c008c] transition-colors hover:bg-[rgba(161,5,161,0.12)]"
+                                >
+                                  View Submitted
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openSubmissionViewModal(item)}
+                                  className="flex items-center justify-center rounded-[46px] border border-emerald-600 bg-emerald-50 px-3.5 py-2 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-100"
+                                >
+                                  View Feedback
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="text-xs text-slate-500">No assignments available</div>
                   )}
@@ -601,7 +1092,7 @@ const CoursePlayerPage = () => {
             </div>
 
             {/* LMS Submissions Section */}
-            <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+            {/* <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
               <button
                 type="button"
                 onClick={() => setExpandedLmsSection(expandedLmsSection === 'submissions' ? null : 'submissions')}
@@ -624,7 +1115,7 @@ const CoursePlayerPage = () => {
                   )}
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* LMS Test Series Section */}
             <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
@@ -756,6 +1247,184 @@ const CoursePlayerPage = () => {
           </div>
         </aside>
       </div>
+
+      <Modal
+        open={assignmentSubmitOpen}
+        title={selectedAssignment ? `Submit Assignment: ${selectedAssignment.title}` : 'Submit Assignment'}
+        onClose={assignmentSubmitting ? () => undefined : closeAssignmentSubmitModal}
+        footer={
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <button
+              type="button"
+              className="rounded-md border border-[#d1d5db] bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={closeAssignmentSubmitModal}
+              disabled={assignmentSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-[#8c008c] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#740074] disabled:cursor-not-allowed disabled:bg-[#b06ab0]"
+              onClick={() => void handleAssignmentSubmit()}
+              disabled={assignmentSubmitting}
+            >
+              {assignmentSubmitting ? 'Submitting...' : 'Submit'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <p className="text-sm font-semibold text-slate-900">{selectedAssignment?.title || 'Assignment'}</p>
+            {selectedAssignment?.description ? (
+              <p className="mt-1 text-sm text-slate-600">{selectedAssignment.description}</p>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold text-slate-700">Submission URL</span>
+              <input
+                type="url"
+                value={assignmentSubmissionUrl}
+                onChange={(event) => setAssignmentSubmissionUrl(event.target.value)}
+                placeholder="Paste a link if your submission is hosted online"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#8c008c]"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold text-slate-700">Upload File</span>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov"
+                onChange={(event) => setAssignmentSubmissionFile(event.target.files?.[0] || null)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition file:mr-3 file:rounded-md file:border-0 file:bg-[#f3e6f3] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-[#8c008c] focus:border-[#8c008c]"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold text-slate-700">Submission Notes</span>
+            <textarea
+              value={assignmentSubmissionText}
+              onChange={(event) => setAssignmentSubmissionText(event.target.value)}
+              rows={5}
+              placeholder="Write your answer or notes here"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#8c008c]"
+            />
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={viewSubmissionOpen}
+        title={selectedSubmission ? `Submission Details: ${selectedSubmission.title}` : 'Submission Details'}
+        onClose={closeSubmissionViewModal}
+        footer={
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="rounded-md bg-[#8c008c] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#740074]"
+              onClick={closeSubmissionViewModal}
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        {selectedSubmission ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-900">{selectedSubmission.title}</p>
+              <p className="mt-1 text-sm text-slate-600">
+                {selectedSubmission.description || 'No description available'}
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {getAssignmentStatusMeta(selectedSubmission.status).label}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Submitted At</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {formatSubmittedAt(selectedSubmission.submittedAt)}
+                </p>
+              </div>
+            </div>
+
+            {selectedSubmission.dueDate ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Due Date</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {formatDueDate(selectedSubmission.dueDate) || selectedSubmission.dueDate}
+                </p>
+              </div>
+            ) : null}
+
+            {getSubmissionFileUrl(selectedSubmission) ? (
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Submitted File</p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="truncate text-sm font-semibold text-slate-900">
+                    {selectedSubmission.fileName || 'Open submitted attachment'}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAssignmentView(selectedSubmission)}
+                    className="rounded-[46px] border border-[#8c008c] bg-[rgba(161,5,161,0.07)] px-3.5 py-2 text-xs font-medium text-[#8c008c] transition-colors hover:bg-[rgba(161,5,161,0.12)]"
+                  >
+                    Open File
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {selectedSubmission.feedback ? (
+              <div className={`rounded-lg p-4 ${['rejected', 'resubmission_required'].includes((selectedSubmission.status || '').toLowerCase()) ? 'border border-red-200 bg-red-50' : 'border border-emerald-200 bg-emerald-50'}`}>
+                <p className={`text-[11px] font-semibold uppercase tracking-wide ${['rejected', 'resubmission_required'].includes((selectedSubmission.status || '').toLowerCase()) ? 'text-red-700' : 'text-emerald-700'}`}>
+                  Feedback
+                </p>
+                <p className={`mt-2 text-sm ${['rejected', 'resubmission_required'].includes((selectedSubmission.status || '').toLowerCase()) ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {selectedSubmission.feedback}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {selectedSubmission.marksObtained !== undefined && selectedSubmission.marksObtained !== null ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Marks Obtained</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {selectedSubmission.marksObtained}
+                    {selectedSubmission.maxMarks !== undefined && selectedSubmission.maxMarks !== null ? ` / ${selectedSubmission.maxMarks}` : ''}
+                  </p>
+                </div>
+              ) : null}
+
+              {selectedSubmission.submissionUrl ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Submission URL</p>
+                  <p className="mt-1 break-all text-sm text-slate-900">{selectedSubmission.submissionUrl}</p>
+                </div>
+              ) : null}
+
+              {selectedSubmission.maxMarks !== undefined && selectedSubmission.maxMarks !== null ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total Marks</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedSubmission.maxMarks} Marks</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 };
