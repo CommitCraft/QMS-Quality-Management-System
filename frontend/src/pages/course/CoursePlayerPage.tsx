@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { api } from '../../services/api';
 
 type Lecture = {
   id: number;
+  contentId?: number;
   title: string;
   videoUrl?: string | null;
   completed?: boolean;
@@ -43,6 +44,7 @@ type LmsItem = {
   id: number;
   assignmentId?: number;
   title: string;
+  completed?: boolean;
   status?: string;
   description?: string;
   dueDate?: string | null;
@@ -75,6 +77,11 @@ type LmsResponse = {
   message?: string;
 };
 
+type ContentProgressItem = {
+  contentId: number;
+  status: 'not_started' | 'opened' | 'completed';
+};
+
 const CoursePlayerPage = () => {
   const navigate = useNavigate();
   const { courseId } = useParams();
@@ -104,6 +111,9 @@ const CoursePlayerPage = () => {
   const [assignmentSubmitting, setAssignmentSubmitting] = useState(false);
   const [viewSubmissionOpen, setViewSubmissionOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<LmsItem | null>(null);
+  const [contentProgressById, setContentProgressById] = useState<Record<number, boolean>>({});
+  const progressSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingProgressRef = useRef<Record<number, 'not_started' | 'completed'>>({});
 
   const resolveMediaUrl = (url?: string | null) => {
     if (!url) {
@@ -209,6 +219,7 @@ const CoursePlayerPage = () => {
 
         const normalizedLectures: Lecture[] = rawLectures.map((lecture: any, lectureIndex: number) => ({
           id: Number(lecture?.id ?? `${moduleIndex + 1}${lectureIndex + 1}`),
+          contentId: lecture?.contentId ? Number(lecture.contentId) : lecture?.content?.id ? Number(lecture.content.id) : undefined,
           title: String(lecture?.title ?? lecture?.name ?? `Lecture ${lectureIndex + 1}`),
           videoUrl: lecture?.videoUrl || lecture?.fileUrl || lecture?.externalUrl || null,
           completed: Boolean(lecture?.completed),
@@ -423,15 +434,34 @@ const CoursePlayerPage = () => {
     
     setLmsLoading(true);
     try {
-      const [contentRes, assignmentsRes, submissionsRes, testsRes] = await Promise.allSettled([
+      const [contentRes, assignmentsRes, submissionsRes, testsRes, progressRes] = await Promise.allSettled([
         api.get(`/courses/${courseId}/content`),
         api.get(`/assignments?courseId=${courseId}`),
         api.get(`/assignment-submissions?courseId=${courseId}`),
         api.get(`/test-series?courseId=${courseId}`),
+        api.get(`/courses/${courseId}/content-progress`),
       ]);
 
+      const progressMap: Record<number, boolean> = {};
+      if (progressRes.status === 'fulfilled') {
+        const progressItems = (progressRes.value.data.data || []) as ContentProgressItem[];
+        progressItems.forEach((item) => {
+          if (item.status === 'completed') {
+            progressMap[Number(item.contentId)] = true;
+          }
+        });
+      }
+
+      setContentProgressById(progressMap);
+
       if (contentRes.status === 'fulfilled') {
-        setCourseContent(contentRes.value.data.data || []);
+        const items = (contentRes.value.data.data || []) as LmsItem[];
+        setCourseContent(
+          items.map((item) => ({
+            ...item,
+            completed: Boolean(progressMap[item.id]),
+          })),
+        );
       }
       if (assignmentsRes.status === 'fulfilled') {
         setAssignments(assignmentsRes.value.data.data || []);
@@ -460,9 +490,10 @@ const CoursePlayerPage = () => {
 
     const fallbackLectures: Lecture[] = courseContent.map((item, index) => ({
       id: Number(item.id ?? index + 1),
+      contentId: Number(item.id ?? index + 1),
       title: item.title || `Content ${index + 1}`,
       videoUrl: item.fileUrl || item.externalUrl || null,
-      completed: false,
+      completed: Boolean(item.completed),
     }));
 
     const fallbackModule: CourseModule = {
@@ -480,6 +511,34 @@ const CoursePlayerPage = () => {
       setActiveLectureId(fallbackLectures[0]?.id ?? null);
     }
   }, [modules.length, courseContent, activeModuleId]);
+
+  useEffect(() => {
+    if (!Object.keys(contentProgressById).length) {
+      return;
+    }
+
+    setModules((prevModules) =>
+      prevModules.map((module) => ({
+        ...module,
+        lectures: module.lectures.map((lecture) => {
+          const progressKey = lecture.contentId ?? lecture.id;
+          if (!(progressKey in contentProgressById)) {
+            return lecture;
+          }
+          return { ...lecture, completed: contentProgressById[progressKey] };
+        }),
+      })),
+    );
+  }, [contentProgressById]);
+
+  useEffect(
+    () => () => {
+      if (progressSyncTimerRef.current) {
+        clearTimeout(progressSyncTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const activeModule = useMemo(
     () => modules.find((module) => module.id === activeModuleId),
@@ -546,9 +605,23 @@ const CoursePlayerPage = () => {
     return { icon: '▶', label: 'Content', playsInline: false };
   };
 
+  const lectureProgressPercentage = useMemo(() => {
+    const totalLectures = modules.reduce((total, module) => total + module.lectures.length, 0);
+    if (totalLectures === 0) {
+      return null;
+    }
+
+    const completedLectures = modules.reduce(
+      (total, module) => total + module.lectures.filter((lecture) => lecture.completed).length,
+      0,
+    );
+
+    return Math.round((completedLectures / totalLectures) * 100);
+  }, [modules]);
+
   const courseProgress = Math.min(
     100,
-    Math.max(0, Number(course?.progressPercentage || 0)),
+    Math.max(0, Number(lectureProgressPercentage ?? course?.progressPercentage ?? 0)),
   );
 
   const courseTitle = course?.title || `Course #${courseId || '-'}`;
@@ -566,6 +639,83 @@ const CoursePlayerPage = () => {
     setExpandedModuleId(moduleId);
     setActiveModuleId(moduleId);
     setActiveLectureId(lectureId);
+
+    const lecture = modules.find((module) => module.id === moduleId)?.lectures.find((item) => item.id === lectureId);
+    const contentId = lecture?.contentId ?? lecture?.id;
+
+    if (!courseId || !contentId) {
+      return;
+    }
+
+    void api.patch(`/courses/${courseId}/content/${contentId}/progress`, {
+      status: lecture?.completed ? 'completed' : 'opened',
+    });
+  };
+
+  const scheduleProgressSync = () => {
+    if (progressSyncTimerRef.current) {
+      clearTimeout(progressSyncTimerRef.current);
+    }
+
+    progressSyncTimerRef.current = setTimeout(async () => {
+      if (!courseId) {
+        return;
+      }
+
+      const updates = Object.entries(pendingProgressRef.current);
+      if (updates.length === 0) {
+        return;
+      }
+
+      pendingProgressRef.current = {};
+
+      try {
+        await Promise.all(
+          updates.map(([contentId, status]) =>
+            api.patch(`/courses/${courseId}/content/${contentId}/progress`, { status }),
+          ),
+        );
+      } catch {
+        toast.error('Unable to sync lecture progress. Refreshing latest data...');
+        await loadLmsData();
+      }
+    }, 700);
+  };
+
+  const handleLectureCompletionToggle = (moduleId: number, lectureId: number) => {
+    const lecture = modules.find((module) => module.id === moduleId)?.lectures.find((item) => item.id === lectureId);
+    if (!lecture) {
+      return;
+    }
+
+    const contentId = lecture.contentId ?? lecture.id;
+    const nextCompleted = !lecture.completed;
+
+    setModules((prevModules) =>
+      prevModules.map((module) => {
+        if (module.id !== moduleId) {
+          return module;
+        }
+
+        return {
+          ...module,
+          lectures: module.lectures.map((lecture) =>
+            lecture.id === lectureId ? { ...lecture, completed: !lecture.completed } : lecture,
+          ),
+        };
+      }),
+    );
+
+    if (!courseId || !contentId) {
+      return;
+    }
+
+    setContentProgressById((prev) => ({
+      ...prev,
+      [contentId]: nextCompleted,
+    }));
+    pendingProgressRef.current[contentId] = nextCompleted ? 'completed' : 'not_started';
+    scheduleProgressSync();
   };
 
   const handleContentClick = (item: LmsItem) => {
@@ -1047,7 +1197,7 @@ const CoursePlayerPage = () => {
                               type="checkbox"
                               className="w-[18px] h-[18px] rounded cursor-pointer accent-[#38A333] shrink-0"
                               checked={Boolean(lecture.completed)}
-                              readOnly
+                              onChange={() => handleLectureCompletionToggle(module.id, lecture.id)}
                               onClick={(event) => event.stopPropagation()}
                             />
                           </button>

@@ -222,6 +222,59 @@ courseContentRouter.get(
   }),
 );
 
+courseContentRouter.get(
+  '/courses/:courseId/content-progress',
+  requirePermission('VIEW_MY_COURSES'),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const employeeId = req.user?.id;
+    if (!employeeId) {
+      throw new AppError('Unauthorized', 401);
+    }
+
+    const courseId = Number(req.params.courseId);
+    const items = await CourseContentProgress.findAll({ where: { courseId, employeeId } });
+    res.json({ success: true, data: items });
+  }),
+);
+
+courseContentRouter.patch(
+  '/courses/:courseId/content/:contentId/progress',
+  requirePermission('VIEW_MY_COURSES'),
+  [body('status').isIn(['not_started', 'opened', 'completed'])],
+  validateRequest,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const employeeId = req.user?.id;
+    if (!employeeId) {
+      throw new AppError('Unauthorized', 401);
+    }
+
+    const courseId = Number(req.params.courseId);
+    const contentId = Number(req.params.contentId);
+    const content = await CourseContent.findOne({ where: { id: contentId, courseId } });
+    if (!content) {
+      throw new AppError('Course content not found', 404);
+    }
+
+    const status = String(req.body.status) as 'not_started' | 'opened' | 'completed';
+    const openedAt = status === 'opened' || status === 'completed' ? new Date() : null;
+    const completedAt = status === 'completed' ? new Date() : null;
+
+    const [item, created] = await CourseContentProgress.findOrCreate({
+      where: { courseId, contentId, employeeId },
+      defaults: { courseId, contentId, employeeId, status, openedAt, completedAt },
+    });
+
+    if (!created) {
+      item.status = status;
+      item.openedAt = openedAt;
+      item.completedAt = completedAt;
+      await item.save();
+    }
+
+    res.json({ success: true, data: item });
+  }),
+);
+
 courseContentRouter.post(
   '/courses/:courseId/content',
   requirePermission('MANAGE_TRAINING_ASSIGN_COURSE'),
