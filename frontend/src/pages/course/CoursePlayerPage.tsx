@@ -1104,7 +1104,7 @@ const CoursePlayerPage = () => {
             
 
             {/* LMS Content Section */}
-            <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+            {/* <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
               <button
                 type="button"
                 aria-expanded={expandedLmsSection === 'content'}
@@ -1170,7 +1170,7 @@ const CoursePlayerPage = () => {
                   )}
                 </div>
               )}
-            </div>
+            </div> */}
 
             
 

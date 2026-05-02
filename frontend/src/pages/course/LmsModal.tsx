@@ -12,6 +12,7 @@ interface LmsModalProps {
   editing: LmsItem | null;
   saving: boolean;
   courses: CourseRow[];
+  moduleOptions: string[];
   onClose: () => void;
   onSave: () => Promise<void>;
   onFormChange: (key: keyof LmsFormState, value: any) => void;
@@ -40,6 +41,7 @@ export const LmsModal = ({
   editing,
   saving,
   courses,
+  moduleOptions,
   onClose,
   onSave,
   onFormChange,
@@ -85,6 +87,7 @@ export const LmsModal = ({
         <AssignmentModalForm
           form={form}
           courses={courses}
+          moduleOptions={moduleOptions}
           onChange={onFormChange}
         />
       ) : null}
