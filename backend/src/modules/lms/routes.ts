@@ -195,6 +195,7 @@ coursesRouter.post(
     for (const content of contents) {
       await CourseContent.create({
         courseId: duplicated.id,
+        module: content.module,
         title: content.title,
         description: content.description,
         contentSourceType: content.contentSourceType,
@@ -291,6 +292,7 @@ courseContentRouter.post(
 
     const item = await CourseContent.create({
       courseId,
+      module: payload.module ? String(payload.module).trim() : null,
       title: String(payload.title || '').trim(),
       description: payload.description ? String(payload.description) : null,
       contentSourceType: sourceType,
@@ -320,6 +322,7 @@ courseContentRouter.put(
     const payload = req.body as Record<string, unknown>;
     const file = req.file;
     await item.update({
+      module: payload.module !== undefined ? String(payload.module || '').trim() : item.module,
       title: payload.title ? String(payload.title).trim() : item.title,
       description: payload.description !== undefined ? String(payload.description || '') : item.description,
       contentSourceType: (payload.contentSourceType as 'file' | 'url') || item.contentSourceType,

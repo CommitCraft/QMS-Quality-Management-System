@@ -25,6 +25,16 @@ export const ContentModalForm = ({ form, courses, onChange }: ContentModalFormPr
       </div>
 
       <div>
+        <label className="mb-2 block text-sm font-medium text-slate-700">Module</label>
+        <input
+          className="h-[42px] w-full rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          value={form.module}
+          onChange={(e) => onChange('module', e.target.value)}
+          placeholder="e.g. Module 1, Chapter A"
+        />
+      </div>
+
+      <div>
         <label className="mb-2 block text-sm font-medium text-slate-700">Title</label>
         <input
           className="h-[42px] w-full rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"

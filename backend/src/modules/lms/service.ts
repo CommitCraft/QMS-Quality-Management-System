@@ -45,7 +45,7 @@ export const getEmployeeAssignmentStatus = async (employeeId: number) => {
   return { submissions, enrollments };
 };
 
-export const listCourseContent = async (courseId: number) => CourseContent.findAll({ where: { courseId }, order: [['displayOrder', 'ASC'], ['createdAt', 'ASC']] });
+export const listCourseContent = async (courseId: number) => CourseContent.findAll({ where: { courseId }, order: [['module', 'ASC'], ['displayOrder', 'ASC'], ['createdAt', 'ASC']] });
 
 export const listAssignments = async (search?: string) => Assignment.findAll({
   where: search ? { title: { [Op.like]: `%${search}%` } } : undefined,

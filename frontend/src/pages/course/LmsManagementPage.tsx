@@ -171,6 +171,7 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
   const contentColumns = useMemo(
     () => [
       { key: 'title', label: 'Content Title' },
+      { key: 'module', label: 'Module' },
       { key: 'contentType', label: 'Type' },
       { key: 'status', label: 'Status', render: (item: Record<string, unknown>) => <StatusBadge value={String(item.status || 'Draft')} /> },
       { key: 'displayOrder', label: 'Order' },
@@ -389,6 +390,7 @@ function createLmsFormState(mode: LmsModalMode, item: LmsItem | null | undefined
         description: item.description || '',
         contentSourceType: item.contentSourceType || 'url',
         contentType: item.contentType || 'pdf',
+        module: item.module || '',
         fileUrl: item.fileUrl || '',
         externalUrl: item.externalUrl || '',
         fileName: item.fileName || '',
@@ -431,6 +433,7 @@ function createLmsFormState(mode: LmsModalMode, item: LmsItem | null | undefined
         status: item.status || 'Draft',
         contentSourceType: 'url',
         contentType: 'pdf',
+        module: '',
         fileUrl: '',
         externalUrl: '',
         fileName: '',
@@ -462,6 +465,7 @@ function createLmsFormState(mode: LmsModalMode, item: LmsItem | null | undefined
         status: item.status || 'Draft',
         contentSourceType: 'url',
         contentType: 'pdf',
+        module: '',
         fileUrl: '',
         externalUrl: '',
         fileName: '',

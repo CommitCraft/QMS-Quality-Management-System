@@ -243,6 +243,7 @@ CREATE TABLE IF NOT EXISTS course_progress (
 CREATE TABLE IF NOT EXISTS course_contents (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   course_id INT UNSIGNED NOT NULL,
+  module VARCHAR(100) NULL,
   title VARCHAR(200) NOT NULL,
   description TEXT NULL,
   content_source_type ENUM('file', 'url') NOT NULL DEFAULT 'file',

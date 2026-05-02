@@ -16,6 +16,7 @@ export const LmsPanel = ({ type, rows, loading, onEdit, onDelete, totalCourses }
   const contentColumns = useMemo(
     () => [
       { key: 'title', label: 'Content Title', width: '280px' },
+      { key: 'module', label: 'Module', width: '180px' },
       { key: 'contentType', label: 'Type', width: '120px' },
       {
         key: 'status',

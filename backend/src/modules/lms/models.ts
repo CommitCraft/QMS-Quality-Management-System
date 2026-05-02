@@ -7,6 +7,7 @@ export type LmsStatus = 'Draft' | 'Active' | 'Inactive' | 'Published' | 'Closed'
 class CourseContentModel extends Model<InferAttributes<CourseContentModel>, InferCreationAttributes<CourseContentModel>> {
   declare id: CreationOptional<number>;
   declare courseId: number;
+  declare module: string | null;
   declare title: string;
   declare description: string | null;
   declare contentSourceType: 'file' | 'url';
@@ -99,6 +100,7 @@ CourseContentModel.init(
   {
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     courseId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    module: { type: DataTypes.STRING(100), allowNull: true },
     title: { type: DataTypes.STRING(200), allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
     contentSourceType: { type: DataTypes.ENUM('file', 'url'), allowNull: false, field: 'content_source_type' },

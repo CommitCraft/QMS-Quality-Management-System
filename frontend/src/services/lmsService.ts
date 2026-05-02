@@ -26,6 +26,7 @@ export type LmsSummary = {
 export type LmsCourseContent = {
   id: number;
   courseId: number;
+  module?: string | null;
   title: string;
   description?: string | null;
   contentSourceType?: 'file' | 'url';

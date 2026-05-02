@@ -47,6 +47,7 @@ export type LmsModalMode = 'content' | 'assignment' | 'submission' | 'testSeries
 // LMS form state
 export type LmsFormState = {
   courseId: number;
+  module: string;
   title: string;
   description: string;
   contentSourceType: 'file' | 'url';
@@ -81,6 +82,7 @@ export const COURSE_TABS: TabKey[] = ['Courses', 'Content', 'Assignments', 'Chec
 
 export const DEFAULT_LMS_FORM: LmsFormState = {
   courseId: 0,
+  module: '',
   title: '',
   description: '',
   contentSourceType: 'url',

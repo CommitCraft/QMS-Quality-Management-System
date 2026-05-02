@@ -43,6 +43,8 @@ type CourseDetailResponse = {
 type LmsItem = {
   id: number;
   assignmentId?: number;
+  module?: string | null;
+  displayOrder?: number | null;
   title: string;
   completed?: boolean;
   status?: string;
@@ -82,6 +84,11 @@ type ContentProgressItem = {
   status: 'not_started' | 'opened' | 'completed';
 };
 
+type ContentGroup = {
+  module: string;
+  items: LmsItem[];
+};
+
 const CoursePlayerPage = () => {
   const navigate = useNavigate();
   const { courseId } = useParams();
@@ -102,6 +109,7 @@ const CoursePlayerPage = () => {
   const [testSeries, setTestSeries] = useState<LmsItem[]>([]);
   const [selectedContent, setSelectedContent] = useState<LmsItem | null>(null);
   const [expandedLmsSection, setExpandedLmsSection] = useState<string | null>(null);
+  const [expandedContentModules, setExpandedContentModules] = useState<Record<string, boolean>>({});
   const [lmsLoading, setLmsLoading] = useState(false);
   const [assignmentSubmitOpen, setAssignmentSubmitOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<LmsItem | null>(null);
@@ -200,6 +208,45 @@ const CoursePlayerPage = () => {
   };
 
   const getSubmissionFileUrl = (item: LmsItem) => resolveMediaUrl(item.uploadedFileUrl || item.submissionUrl || item.fileUrl || item.externalUrl || item.attachmentUrl);
+
+  const groupedCourseContent = useMemo<ContentGroup[]>(() => {
+    const groups = new Map<string, LmsItem[]>();
+
+    courseContent
+      .slice()
+      .sort((left, right) => {
+        const leftModule = (left.module || 'General').toLowerCase();
+        const rightModule = (right.module || 'General').toLowerCase();
+
+        if (leftModule !== rightModule) {
+          return leftModule.localeCompare(rightModule);
+        }
+
+        return Number(left.displayOrder || 0) - Number(right.displayOrder || 0);
+      })
+      .forEach((item) => {
+        const moduleName = item.module?.trim() || 'General';
+        const existing = groups.get(moduleName) || [];
+        existing.push(item);
+        groups.set(moduleName, existing);
+      });
+
+    return Array.from(groups.entries()).map(([module, items]) => ({ module, items }));
+  }, [courseContent]);
+
+  useEffect(() => {
+    if (groupedCourseContent.length === 0) {
+      return;
+    }
+
+    setExpandedContentModules((current) => {
+      if (Object.keys(current).length > 0) {
+        return current;
+      }
+
+      return { [groupedCourseContent[0].module]: true };
+    });
+  }, [groupedCourseContent]);
 
   const normalizeModules = (courseData: CourseDetail): CourseModule[] => {
     const rawModules = (
@@ -484,33 +531,36 @@ const CoursePlayerPage = () => {
   }, [courseId]);
 
   useEffect(() => {
-    if (modules.length > 0 || courseContent.length === 0) {
+    if (modules.length > 0 || groupedCourseContent.length === 0) {
       return;
     }
 
-    const fallbackLectures: Lecture[] = courseContent.map((item, index) => ({
-      id: Number(item.id ?? index + 1),
-      contentId: Number(item.id ?? index + 1),
-      title: item.title || `Content ${index + 1}`,
-      videoUrl: item.fileUrl || item.externalUrl || null,
-      completed: Boolean(item.completed),
-    }));
+    const fallbackModules: CourseModule[] = groupedCourseContent.map((group, groupIndex) => {
+      const fallbackLectures: Lecture[] = group.items.map((item, itemIndex) => ({
+        id: Number(item.id ?? `${groupIndex + 1}${itemIndex + 1}`),
+        contentId: Number(item.id ?? `${groupIndex + 1}${itemIndex + 1}`),
+        title: item.title || `Content ${itemIndex + 1}`,
+        videoUrl: item.fileUrl || item.externalUrl || null,
+        completed: Boolean(item.completed),
+      }));
 
-    const fallbackModule: CourseModule = {
-      id: 1,
-      title: 'Course Content',
-      duration: undefined,
-      progress: undefined,
-      lectures: fallbackLectures,
-    };
+      return {
+        id: groupIndex + 1,
+        title: group.module,
+        duration: undefined,
+        progress: `${fallbackLectures.filter((lecture) => lecture.completed).length} / ${fallbackLectures.length} lectures`,
+        lectures: fallbackLectures,
+      };
+    });
 
-    setModules([fallbackModule]);
+    setModules(fallbackModules);
     if (!activeModuleId) {
-      setExpandedModuleId(fallbackModule.id);
-      setActiveModuleId(fallbackModule.id);
-      setActiveLectureId(fallbackLectures[0]?.id ?? null);
+      const firstModule = fallbackModules[0];
+      setExpandedModuleId(firstModule?.id ?? null);
+      setActiveModuleId(firstModule?.id ?? null);
+      setActiveLectureId(firstModule?.lectures[0]?.id ?? null);
     }
-  }, [modules.length, courseContent, activeModuleId]);
+  }, [modules.length, groupedCourseContent, activeModuleId]);
 
   useEffect(() => {
     if (!Object.keys(contentProgressById).length) {
@@ -618,6 +668,11 @@ const CoursePlayerPage = () => {
 
     return Math.round((completedLectures / totalLectures) * 100);
   }, [modules]);
+
+  const formatLectureProgress = (completed: number, total: number) => {
+    const lectureLabel = total === 1 ? 'lecture' : 'lectures';
+    return `${completed} of ${total} ${lectureLabel} completed`;
+  };
 
   const courseProgress = Math.min(
     100,
@@ -732,7 +787,21 @@ const CoursePlayerPage = () => {
       return;
     }
 
+    if (item.module) {
+      setExpandedContentModules((current) => ({
+        ...current,
+        [item.module!.trim() || 'General']: true,
+      }));
+    }
+
     setSelectedContent(item);
+  };
+
+  const toggleContentModule = (moduleName: string) => {
+    setExpandedContentModules((current) => ({
+      ...current,
+      [moduleName]: !current[moduleName],
+    }));
   };
 
   const handleAssignmentView = (item: LmsItem) => {
@@ -1035,7 +1104,7 @@ const CoursePlayerPage = () => {
             
 
             {/* LMS Content Section */}
-            {/* <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
+            <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
               <button
                 type="button"
                 aria-expanded={expandedLmsSection === 'content'}
@@ -1046,36 +1115,62 @@ const CoursePlayerPage = () => {
                 <span className={`text-xs transition-transform ${expandedLmsSection === 'content' ? 'rotate-180' : ''}`}>▼</span>
               </button>
               {expandedLmsSection === 'content' && (
-                <div className="flex flex-col gap-1.5 mt-2">
-                  {courseContent.length > 0 ? (
-                    courseContent.slice(0, 5).map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleContentClick(item)}
-                        className={`text-left text-xs p-2 rounded border transition ${selectedContent?.id === item.id ? 'bg-purple-50 border-purple-300' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] ring-1 ring-slate-200">
-                            {getContentMeta(item).icon}
-                          </span>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-slate-900 truncate">{item.title}</div>
-                            <div className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-600">
-                              <span>{item.status || 'Ready'}</span>
-                              <span>{getContentMeta(item).label}</span>
-                            </div>
+                <div className="flex flex-col gap-3 mt-2">
+                  {groupedCourseContent.length > 0 ? (
+                    groupedCourseContent.map((group) => (
+                      <div key={group.module} className="rounded-lg border border-slate-100 bg-slate-50 p-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleContentModule(group.module)}
+                          className="mb-2 flex w-full items-center justify-between rounded-md px-1 py-1 text-left transition hover:bg-white"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{group.module}</div>
+                            <div className="text-[10px] text-slate-400">Module-wise content</div>
                           </div>
-                        </div>
-                      </button>
+
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">
+                              {group.items.length}
+                            </span>
+                            <span className={`text-xs transition-transform ${expandedContentModules[group.module] ? 'rotate-180' : ''}`}>▼</span>
+                          </div>
+                        </button>
+
+                        {expandedContentModules[group.module] ? (
+                          <div className="flex flex-col gap-1.5">
+                            {group.items.map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => handleContentClick(item)}
+                                className={`text-left text-xs p-2 rounded border transition ${selectedContent?.id === item.id ? 'bg-purple-50 border-purple-300' : 'bg-white border-slate-200 hover:bg-slate-100'}`}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] ring-1 ring-slate-200">
+                                    {getContentMeta(item).icon}
+                                  </span>
+
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-medium text-slate-900 truncate">{item.title}</div>
+                                    <div className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-600">
+                                      <span>{item.status || 'Ready'}</span>
+                                      <span>{getContentMeta(item).label}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     ))
                   ) : (
                     <div className="text-xs text-slate-500">No content available</div>
                   )}
                 </div>
               )}
-            </div> */}
+            </div>
 
             
 
@@ -1154,7 +1249,10 @@ const CoursePlayerPage = () => {
                       <div className="w-px h-[17px] bg-[#555]" />
                       <span>
                         {module.progress ||
-                          `${module.lectures.filter((lecture) => lecture.completed).length} / ${module.lectures.length} lectures`}
+                          formatLectureProgress(
+                            module.lectures.filter((lecture) => lecture.completed).length,
+                            module.lectures.length,
+                          )}
                       </span>
                     </div>
                   </button>

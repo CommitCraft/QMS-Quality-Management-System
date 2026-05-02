@@ -97,6 +97,7 @@ export const useLmsData = () => {
     async (form: LmsFormState, editing: LmsItem | null) => {
       const payload = {
         courseId: form.courseId,
+        module: form.module.trim() || undefined,
         title: form.title.trim(),
         description: form.description.trim(),
         contentSourceType: form.contentSourceType,
