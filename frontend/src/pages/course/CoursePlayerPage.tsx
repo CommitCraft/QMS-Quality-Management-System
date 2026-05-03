@@ -885,8 +885,21 @@ const CoursePlayerPage = () => {
     setSelectedTest(null);
   };
 
-  const startTest = (testId: number) => {
-    navigate(`/training/test/${testId}`);
+  const startTest = (testId: number | string) => {
+    const idNum = Number(testId);
+    if (!idNum || Number.isNaN(idNum)) {
+      toast.error('Invalid test id');
+      return;
+    }
+
+    try {
+      navigate(`/training/test/${idNum}`);
+      // close modal after navigation
+      closeTestDetailsModal();
+    } catch (err) {
+      // fallback: open in new tab
+      window.open(`${window.location.origin}/training/test/${idNum}`, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const openTestSeriesPanel = () => {
