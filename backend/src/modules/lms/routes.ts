@@ -4,7 +4,7 @@ import { Op } from 'sequelize';
 import { asyncHandler, parsePagination } from '../../common/utils';
 import { AppError, authenticate, requirePermission, validateRequest, AuthenticatedRequest } from '../../common/middleware';
 import { Course, CourseEnrollment, CourseProgress, User } from '../../models';
-import { Assignment, AssignmentSubmission, CourseContent, CourseContentProgress, TestQuestion, TestSeries } from './models';
+import { Assignment, AssignmentSubmission, CourseContent, CourseContentProgress, TestAttempt, TestQuestion, TestSeries } from './models';
 import { assignmentAttachmentUpload, assignmentSubmissionUpload, courseContentUpload, detectContentType, toPublicUploadUrl } from './fileUpload';
 import { getCourseDetail, getCourseSummary, getEmployeeAssignmentStatus, listAssignments, listCourseContent, listTestSeries } from './service';
 
@@ -711,6 +711,149 @@ testSeriesRouter.get(
       throw new AppError('Test series not found', 404);
     }
     res.json({ success: true, data: item });
+  }),
+);
+
+testSeriesRouter.get(
+  '/:id/attempts',
+  requirePermission('VIEW_MY_COURSES'),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const testSeriesId = Number(req.params.id);
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError('Unauthorized', 401);
+    }
+
+    const attempts = await TestAttempt.findAll({
+      where: { testSeriesId, userId },
+      order: [['attemptedAt', 'ASC']],
+    });
+
+    const data = attempts.map((attempt) => ({
+      id: attempt.id,
+      score: Number(attempt.score || 0),
+      passed: Boolean(attempt.passed),
+      time: attempt.attemptedAt,
+    }));
+
+    res.json({ success: true, data });
+  }),
+);
+
+testSeriesRouter.get(
+  '/:id/attempts/report',
+  requirePermission('VIEW_TRAINING_COURSE'),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const testSeriesId = Number(req.params.id);
+    const userIdFilter = req.query.userId ? Number(req.query.userId) : null;
+
+    const testSeries = await TestSeries.findByPk(testSeriesId);
+    if (!testSeries) {
+      throw new AppError('Test series not found', 404);
+    }
+
+    const attempts = await TestAttempt.findAll({
+      where: {
+        testSeriesId,
+        ...(userIdFilter ? { userId: userIdFilter } : {}),
+      },
+      order: [['attemptedAt', 'DESC']],
+    });
+
+    const userIds = Array.from(new Set(attempts.map((attempt) => Number(attempt.userId))));
+    const users = userIds.length > 0 ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'name', 'email', 'username'] }) : [];
+    const userMap = new Map(users.map((user) => [Number(user.id), user]));
+
+    const rows = attempts.map((attempt) => {
+      const user = userMap.get(Number(attempt.userId));
+      return {
+        id: attempt.id,
+        userId: Number(attempt.userId),
+        userName: user?.name || null,
+        userEmail: user?.email || null,
+        username: user?.username || null,
+        score: Number(attempt.score || 0),
+        passed: Boolean(attempt.passed),
+        time: attempt.attemptedAt,
+      };
+    });
+
+    const summaryByUser = rows.reduce<Record<string, { userId: number; userName: string | null; userEmail: string | null; username: string | null; attempts: number; bestScore: number; passed: boolean; lastAttemptAt: Date | null }>>((acc, row) => {
+      const key = String(row.userId);
+      if (!acc[key]) {
+        acc[key] = {
+          userId: row.userId,
+          userName: row.userName,
+          userEmail: row.userEmail,
+          username: row.username,
+          attempts: 0,
+          bestScore: 0,
+          passed: false,
+          lastAttemptAt: null,
+        };
+      }
+
+      acc[key].attempts += 1;
+      acc[key].bestScore = Math.max(acc[key].bestScore, row.score);
+      acc[key].passed = acc[key].passed || row.passed;
+      acc[key].lastAttemptAt = row.time;
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      data: {
+        totalAttempts: rows.length,
+        totalUsers: Object.keys(summaryByUser).length,
+        passCount: rows.filter((row) => row.passed).length,
+        attempts: rows,
+        users: Object.values(summaryByUser),
+      },
+    });
+  }),
+);
+
+testSeriesRouter.post(
+  '/:id/attempts',
+  requirePermission('VIEW_MY_COURSES'),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const testSeriesId = Number(req.params.id);
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError('Unauthorized', 401);
+    }
+
+    const testSeries = await TestSeries.findByPk(testSeriesId);
+    if (!testSeries) {
+      throw new AppError('Test series not found', 404);
+    }
+
+    const hasPassed = await TestAttempt.count({ where: { testSeriesId, userId, passed: true } });
+    if (hasPassed > 0) {
+      throw new AppError('You have already passed this test and cannot retake it', 400);
+    }
+
+    const payload = req.body as Record<string, unknown>;
+    const score = Math.max(0, toNumber(payload.score, 0));
+    const passed = toBool(payload.passed);
+
+    const created = await TestAttempt.create({
+      testSeriesId,
+      userId,
+      score,
+      passed,
+      attemptedAt: new Date(),
+    } as never);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: created.id,
+        score: Number(created.score || 0),
+        passed: Boolean(created.passed),
+        time: created.attemptedAt,
+      },
+    });
   }),
 );
 

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { DataTable } from '../../components/DataTable';
+import { Modal } from '../../components/Modal';
 import { StatusBadge } from '../../components/StatusBadge';
 import { LmsModal } from './LmsModal';
 import { useLmsData } from './useLmsData';
@@ -20,6 +21,36 @@ type LmsViewType = 'content' | 'assignments' | 'checking' | 'testSeries';
 interface LmsManagementPageProps {
   view?: LmsViewType;
 }
+
+type TestAttemptReportRow = {
+  id: number;
+  userId: number;
+  userName: string | null;
+  userEmail: string | null;
+  username: string | null;
+  score: number;
+  passed: boolean;
+  time: string;
+};
+
+type TestAttemptReportUserSummary = {
+  userId: number;
+  userName: string | null;
+  userEmail: string | null;
+  username: string | null;
+  attempts: number;
+  bestScore: number;
+  passed: boolean;
+  lastAttemptAt: string | null;
+};
+
+type TestAttemptReportData = {
+  totalAttempts: number;
+  totalUsers: number;
+  passCount: number;
+  attempts: TestAttemptReportRow[];
+  users: TestAttemptReportUserSummary[];
+};
 
 export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) => {
   const navigate = useNavigate();
@@ -53,6 +84,16 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
   const [lmsModalMode, setLmsModalMode] = useState<LmsModalMode | null>(null);
   const [lmsEditing, setLmsEditing] = useState<LmsItem | null>(null);
   const [lmsForm, setLmsForm] = useState<LmsFormState>(DEFAULT_LMS_FORM);
+  const [attemptReportOpen, setAttemptReportOpen] = useState(false);
+  const [attemptReportLoading, setAttemptReportLoading] = useState(false);
+  const [attemptReportTestTitle, setAttemptReportTestTitle] = useState('');
+  const [attemptReportData, setAttemptReportData] = useState<TestAttemptReportData>({
+    totalAttempts: 0,
+    totalUsers: 0,
+    passCount: 0,
+    attempts: [],
+    users: [],
+  });
 
   // Load courses on mount
   useEffect(() => {
@@ -167,6 +208,45 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
     }
   };
 
+  const openAttemptReport = async (item: LmsItem) => {
+    if (!item.id) {
+      toast.error('Invalid test series id');
+      return;
+    }
+
+    setAttemptReportOpen(true);
+    setAttemptReportLoading(true);
+    setAttemptReportTestTitle(item.title || `Test ${item.id}`);
+
+    try {
+      const response = await api.get(`/test-series/${item.id}/attempts/report`);
+      const payload = response.data?.data as Partial<TestAttemptReportData> | undefined;
+      setAttemptReportData({
+        totalAttempts: Number(payload?.totalAttempts || 0),
+        totalUsers: Number(payload?.totalUsers || 0),
+        passCount: Number(payload?.passCount || 0),
+        attempts: Array.isArray(payload?.attempts) ? payload?.attempts : [],
+        users: Array.isArray(payload?.users) ? payload?.users : [],
+      });
+    } catch {
+      setAttemptReportData({
+        totalAttempts: 0,
+        totalUsers: 0,
+        passCount: 0,
+        attempts: [],
+        users: [],
+      });
+      toast.error('Unable to load attempt report');
+    } finally {
+      setAttemptReportLoading(false);
+    }
+  };
+
+  const closeAttemptReport = () => {
+    setAttemptReportOpen(false);
+    setAttemptReportTestTitle('');
+  };
+
   // Memoized columns for each view type
   const contentColumns = useMemo(
     () => [
@@ -214,14 +294,22 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
       { key: 'durationMinutes', label: 'Duration' },
       { 
         key: 'actions', 
-        label: 'Test Builder',
+        label: 'Actions',
         render: (item: Record<string, unknown>) => (
-          <button
-            onClick={() => navigate(`/lms/test-series/${item.id}/builder`)}
-            className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition"
-          >
-            Edit Questions
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => navigate(`/lms/test-series/${item.id}/builder`)}
+              className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition"
+            >
+              Edit Questions
+            </button>
+            <button
+              onClick={() => void openAttemptReport(item as LmsItem)}
+              className="px-3 py-1 text-xs bg-slate-700 text-white rounded hover:bg-slate-800 transition"
+            >
+              Attempts Report
+            </button>
+          </div>
         )
       },
     ],
@@ -382,6 +470,114 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
         onSave={saveLmsModal}
         onFormChange={(key, value) => setLmsForm((current) => ({ ...current, [key]: value }))}
       />
+
+      <Modal
+        open={attemptReportOpen}
+        title={`Test Attempts Report${attemptReportTestTitle ? ` - ${attemptReportTestTitle}` : ''}`}
+        onClose={closeAttemptReport}
+        footer={(
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              onClick={closeAttemptReport}
+            >
+              Close
+            </button>
+          </div>
+        )}
+      >
+        {attemptReportLoading ? (
+          <div className="py-10 text-center text-sm text-slate-600">Loading report...</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs text-slate-500">Total Attempts</p>
+                <p className="text-xl font-bold text-slate-900">{attemptReportData.totalAttempts}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs text-slate-500">Users Attempted</p>
+                <p className="text-xl font-bold text-slate-900">{attemptReportData.totalUsers}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs text-slate-500">Passed Attempts</p>
+                <p className="text-xl font-bold text-emerald-700">{attemptReportData.passCount}</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">User Summary</div>
+              {attemptReportData.users.length === 0 ? (
+                <div className="px-4 py-6 text-sm text-slate-600">No attempts found for this test series.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="px-4 py-2 text-left font-semibold">User</th>
+                        <th className="px-4 py-2 text-left font-semibold">Email</th>
+                        <th className="px-4 py-2 text-left font-semibold">Attempts</th>
+                        <th className="px-4 py-2 text-left font-semibold">Best Score</th>
+                        <th className="px-4 py-2 text-left font-semibold">Passed</th>
+                        <th className="px-4 py-2 text-left font-semibold">Last Attempt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attemptReportData.users.map((user) => (
+                        <tr key={user.userId} className="border-t border-slate-100">
+                          <td className="px-4 py-2 text-slate-900">{user.userName || user.username || `User ${user.userId}`}</td>
+                          <td className="px-4 py-2 text-slate-700">{user.userEmail || '-'}</td>
+                          <td className="px-4 py-2 text-slate-700">{user.attempts}</td>
+                          <td className="px-4 py-2 text-slate-700">{user.bestScore}</td>
+                          <td className="px-4 py-2">
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${user.passed ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
+                              {user.passed ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-slate-700">{user.lastAttemptAt ? new Date(user.lastAttemptAt).toLocaleString() : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {attemptReportData.attempts.length > 0 ? (
+              <div className="rounded-lg border border-slate-200 bg-white">
+                <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">Recent Attempts</div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="px-4 py-2 text-left font-semibold">Time</th>
+                        <th className="px-4 py-2 text-left font-semibold">User</th>
+                        <th className="px-4 py-2 text-left font-semibold">Score</th>
+                        <th className="px-4 py-2 text-left font-semibold">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attemptReportData.attempts.map((attempt) => (
+                        <tr key={attempt.id} className="border-t border-slate-100">
+                          <td className="px-4 py-2 text-slate-700">{new Date(attempt.time).toLocaleString()}</td>
+                          <td className="px-4 py-2 text-slate-900">{attempt.userName || attempt.username || `User ${attempt.userId}`}</td>
+                          <td className="px-4 py-2 text-slate-700">{attempt.score}</td>
+                          <td className="px-4 py-2">
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${attempt.passed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                              {attempt.passed ? 'Passed' : 'Failed'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

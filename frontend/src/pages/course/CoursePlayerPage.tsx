@@ -94,6 +94,13 @@ type ContentGroup = {
   items: LmsItem[];
 };
 
+type TestAttempt = {
+  id?: number;
+  time: string;
+  score: number;
+  passed: boolean;
+};
+
 const CoursePlayerPage = () => {
   const navigate = useNavigate();
   const { courseId } = useParams();
@@ -126,6 +133,7 @@ const CoursePlayerPage = () => {
   const [selectedSubmission, setSelectedSubmission] = useState<LmsItem | null>(null);
   const [viewTestOpen, setViewTestOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState<LmsItem | null>(null);
+  const [testAttempts, setTestAttempts] = useState<TestAttempt[]>([]);
   const [contentProgressById, setContentProgressById] = useState<Record<number, boolean>>({});
   const progressSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingProgressRef = useRef<Record<number, 'not_started' | 'completed'>>({});
@@ -875,14 +883,24 @@ const CoursePlayerPage = () => {
     setSelectedSubmission(null);
   };
 
-  const openTestDetailsModal = (item: LmsItem) => {
+  const openTestDetailsModal = async (item: LmsItem) => {
     setSelectedTest(item);
     setViewTestOpen(true);
+
+    // Load attempts from server for this test and current user.
+    try {
+      const response = await api.get(`/test-series/${item.id}/attempts`);
+      const attempts = Array.isArray(response.data?.data) ? (response.data.data as TestAttempt[]) : [];
+      setTestAttempts(attempts);
+    } catch {
+      setTestAttempts([]);
+    }
   };
 
   const closeTestDetailsModal = () => {
     setViewTestOpen(false);
     setSelectedTest(null);
+    setTestAttempts([]);
   };
 
   const startTest = (testId: number | string) => {
@@ -1641,13 +1659,13 @@ const CoursePlayerPage = () => {
                             >
                               View Details
                             </button>
-                            <button
+                            {/* <button
                               type="button"
                               onClick={openTestSeriesPanel}
                               className="flex items-center justify-center rounded-[46px] border border-[#800080] bg-[#902190] px-3.5 py-2 text-xs font-medium text-white transition-colors hover:bg-[#7a1c7a]"
                             >
                               {isActiveTest ? 'Start Test' : 'Open Tests'}
-                            </button>
+                            </button> */}
                           </div>
                         </div>
                       );
@@ -1859,9 +1877,10 @@ const CoursePlayerPage = () => {
             <button
               type="button"
               onClick={() => selectedTest && startTest(selectedTest.id)}
-              className="rounded-md bg-[#8c008c] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#740074]"
+              disabled={testAttempts.some((a) => a.passed)}
+              className={`rounded-md px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition ${testAttempts.some((a) => a.passed) ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-[#8c008c] hover:bg-[#740074]'}`}
             >
-              Take Test
+              {testAttempts.some((a) => a.passed) ? 'Test Passed — No Retakes' : 'Take Test'}
             </button>
           </div>
         }
@@ -1924,6 +1943,24 @@ const CoursePlayerPage = () => {
                   <p className="mt-1 text-sm font-semibold text-slate-900">{selectedTest.status}</p>
                 </div>
               ) : null}
+            </div>
+
+            {/* Attempt History */}
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-900">Attempt History</p>
+              <p className="text-xs text-slate-500 mb-2">Total attempts: {testAttempts.length}</p>
+              {testAttempts.length === 0 ? (
+                <div className="text-sm text-slate-600">No attempts yet</div>
+              ) : (
+                <div className="space-y-2">
+                  {testAttempts.slice().reverse().map((a, idx) => (
+                    <div key={`${a.time}-${idx}`} className={`flex items-center justify-between p-2 rounded ${a.passed ? 'bg-green-50 border border-green-100' : 'bg-slate-50 border border-slate-100'}`}>
+                      <div className="text-sm text-slate-800">{new Date(a.time).toLocaleString()}</div>
+                      <div className="text-sm font-semibold text-slate-900">{a.passed ? 'Passed' : `${a.score} marks`}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : null}

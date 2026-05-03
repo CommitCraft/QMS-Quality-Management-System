@@ -87,6 +87,15 @@ class TestQuestionModel extends Model<InferAttributes<TestQuestionModel>, InferC
   declare section?: string | null;
 }
 
+class TestAttemptModel extends Model<InferAttributes<TestAttemptModel>, InferCreationAttributes<TestAttemptModel>> {
+  declare id: CreationOptional<number>;
+  declare testSeriesId: number;
+  declare userId: number;
+  declare score: number;
+  declare passed: boolean;
+  declare attemptedAt: CreationOptional<Date>;
+}
+
 class CourseContentProgressModel extends Model<InferAttributes<CourseContentProgressModel>, InferCreationAttributes<CourseContentProgressModel>> {
   declare id: CreationOptional<number>;
   declare courseId: number;
@@ -194,6 +203,18 @@ TestQuestionModel.init(
   { sequelize, tableName: 'test_questions', underscored: true },
 );
 
+TestAttemptModel.init(
+  {
+    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    testSeriesId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, field: 'test_series_id' },
+    userId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, field: 'user_id' },
+    score: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
+    passed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    attemptedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'attempted_at' },
+  },
+  { sequelize, tableName: 'test_attempts', underscored: true },
+);
+
 CourseContentProgressModel.init(
   {
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
@@ -215,6 +236,8 @@ Course.hasMany(TestSeriesModel, { foreignKey: 'courseId', as: 'testSeries' });
 TestSeriesModel.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
 TestSeriesModel.hasMany(TestQuestionModel, { foreignKey: 'testSeriesId', as: 'questions' });
 TestQuestionModel.belongsTo(TestSeriesModel, { foreignKey: 'testSeriesId', as: 'testSeries' });
+TestSeriesModel.hasMany(TestAttemptModel, { foreignKey: 'testSeriesId', as: 'attempts' });
+TestAttemptModel.belongsTo(TestSeriesModel, { foreignKey: 'testSeriesId', as: 'testSeries' });
 AssignmentModel.hasMany(AssignmentSubmissionModel, { foreignKey: 'assignmentId', as: 'submissions' });
 AssignmentSubmissionModel.belongsTo(AssignmentModel, { foreignKey: 'assignmentId', as: 'assignment' });
 CourseContentProgressModel.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
@@ -226,5 +249,6 @@ export {
   AssignmentSubmissionModel as AssignmentSubmission,
   TestSeriesModel as TestSeries,
   TestQuestionModel as TestQuestion,
+  TestAttemptModel as TestAttempt,
   CourseContentProgressModel as CourseContentProgress,
 };

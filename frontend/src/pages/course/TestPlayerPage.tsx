@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AxiosError } from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
@@ -24,6 +25,13 @@ type StudentAnswer = {
   answer: string;
 };
 
+type TestAttempt = {
+  id?: number;
+  time: string;
+  score: number;
+  passed: boolean;
+};
+
 type TestSeries = {
   id: number;
   courseId: number;
@@ -47,6 +55,7 @@ export const TestPlayerPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<StudentAnswer[]>([]);
+  const [attempts, setAttempts] = useState<TestAttempt[]>([]);
   const [showReview, setShowReview] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -73,6 +82,9 @@ export const TestPlayerPage = () => {
       }));
       setQuestions(normalizedQuestions);
       setTimeRemaining(data.durationMinutes * 60); // Convert to seconds
+      const attemptsResponse = await api.get(`/test-series/${data.id}/attempts`);
+      const attemptsData = Array.isArray(attemptsResponse.data?.data) ? attemptsResponse.data.data : [];
+      setAttempts(attemptsData);
     } catch (error) {
       toast.error('Failed to load test series');
     } finally {
@@ -130,13 +142,43 @@ export const TestPlayerPage = () => {
 
   const submitTest = async () => {
     try {
-      // Here you would typically save the test submission to the backend
-      // await api.post(`/test-series/${testSeriesId}/submit`, { answers });
+      // calculate score locally
+      const totalMarks = answers.reduce((sum, a) => {
+        const q = questions.find((q) => q.id === a.questionId);
+        return sum + (q && q.correctAnswer === a.answer ? q.marks : 0);
+      }, 0);
+
+      const passed = testSeries ? totalMarks >= testSeries.passingMarks : false;
+
+      const response = await api.post(`/test-series/${testSeriesId}/attempts`, {
+        score: totalMarks,
+        passed,
+      });
+
+      const savedAttempt = response.data?.data as TestAttempt | undefined;
+      if (savedAttempt) {
+        setAttempts((prev) => [...prev, savedAttempt]);
+      }
+
       toast.success('Test submitted successfully!');
       setSubmitted(true);
       setShowReview(true);
     } catch (error) {
-      toast.error('Failed to submit test');
+      const message =
+        (error as AxiosError<{ message?: string }>)?.response?.data?.message ||
+        (error as Error)?.message ||
+        'Failed to submit test';
+      toast.error(message);
+
+      if (testSeriesId) {
+        try {
+          const attemptsResponse = await api.get(`/test-series/${testSeriesId}/attempts`);
+          const attemptsData = Array.isArray(attemptsResponse.data?.data) ? attemptsResponse.data.data : [];
+          setAttempts(attemptsData);
+        } catch {
+          // Ignore refresh failures here.
+        }
+      }
     }
   };
 
@@ -187,14 +229,24 @@ export const TestPlayerPage = () => {
               <span className="text-gray-700 font-medium">Passing Marks:</span>
               <span className="text-gray-900 font-bold">{testSeries.passingMarks}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-gray-700 font-medium">Attempts:</span>
+              <span className="text-gray-900 font-bold">{attempts.length}</span>
+            </div>
+            {attempts.length > 0 && (
+              <div className="mt-2 text-sm text-slate-600">
+                Last: {new Date(attempts[attempts.length - 1].time).toLocaleString()} — {attempts[attempts.length - 1].passed ? 'Passed' : `${attempts[attempts.length - 1].score} marks`}
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
             <button
               onClick={() => setTestStarted(true)}
-              className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold transition"
+              disabled={attempts.some((a) => a.passed)}
+              className={`w-full px-6 py-3 rounded-lg font-bold transition ${attempts.some((a) => a.passed) ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
             >
-              Start Test
+              {attempts.some((a) => a.passed) ? 'Test Passed — No Retakes' : 'Start Test'}
             </button>
             <button
               onClick={() => navigate(-1)}
