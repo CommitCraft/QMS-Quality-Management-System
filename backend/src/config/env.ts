@@ -23,7 +23,7 @@ export const env = {
   jwt: {
     accessSecret: required(process.env.JWT_ACCESS_SECRET, 'qms-access-secret'),
     refreshSecret: required(process.env.JWT_REFRESH_SECRET, 'qms-refresh-secret'),
-    accessExpiresIn: required(process.env.JWT_ACCESS_EXPIRES_IN, '15m'),
+    accessExpiresIn: required(process.env.JWT_ACCESS_EXPIRES_IN, '7d'),
     refreshExpiresIn: required(process.env.JWT_REFRESH_EXPIRES_IN, '7d'),
   },
   corsOrigin: required(process.env.CORS_ORIGIN, 'http://localhost:5173'),
