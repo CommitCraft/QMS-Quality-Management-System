@@ -23,12 +23,20 @@ import CompanyProfilePage from './pages/CompanyProfilePage';
 import MyProfilePage from './pages/MyProfilePage';
 import LoginAuditsPage from './pages/LoginAuditsPage';
 import ErrorLogsPage from './pages/ErrorLogsPage';
-import CoursePage from './pages/course/CoursePage';
-import MyCoursesPage from './pages/course/MyCoursesPage';
-import AssignCoursePage from './pages/course/AssignCoursePage';
-import CourseSummaryPage from './pages/course/CourseSummaryPage';
-import { LmsContentPage, LmsAssignmentsPage, LmsCheckingPage, LmsTestSeriesPage, TestSeriesBuilderPage, TestPlayerPage } from './pages/course';
-import CoursePlayerPage from './pages/course/CoursePlayerPage';
+import pageNotFound from "./pages/404PageNotFound";
+import {
+  CoursePage,
+  MyCoursesPage,
+  AssignCoursePage,
+  CourseSummaryPage,
+  LmsContentPage,
+  LmsAssignmentsPage,
+  LmsCheckingPage,
+  LmsTestSeriesPage,
+  TestSeriesBuilderPage,
+  TestPlayerPage,
+  CoursePlayerPage,
+} from './pages/course';
 const App = () => {
   return (
     <Routes>
@@ -143,7 +151,7 @@ const App = () => {
             <Route path="/settings/company-profile" element={<CompanyProfilePage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/pageNotFound" replace />} />
         </Route>
       </Route>
     </Routes>

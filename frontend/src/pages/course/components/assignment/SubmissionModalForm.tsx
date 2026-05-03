@@ -1,4 +1,4 @@
-import { LmsFormState, LmsItem } from './types';
+import { LmsFormState, LmsItem } from '../../types';
 
 interface SubmissionModalFormProps {
   form: LmsFormState;

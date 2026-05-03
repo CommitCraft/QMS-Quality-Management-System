@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api } from '../../services/api';
+import { testSeriesService } from '../../services';
 
 type QuestionType = 'mcq' | 'true_false' | 'short_answer';
 
@@ -71,8 +71,7 @@ export const TestPlayerPage = () => {
     if (!testSeriesId) return;
     setLoading(true);
     try {
-      const response = await api.get(`/test-series/${testSeriesId}`);
-      const data = response.data.data;
+      const data = await testSeriesService.getById(testSeriesId);
       setTestSeries(data);
       const normalizedQuestions = (data.questions || []).map((q: any) => ({
         ...q,
@@ -82,8 +81,7 @@ export const TestPlayerPage = () => {
       }));
       setQuestions(normalizedQuestions);
       setTimeRemaining(data.durationMinutes * 60); // Convert to seconds
-      const attemptsResponse = await api.get(`/test-series/${data.id}/attempts`);
-      const attemptsData = Array.isArray(attemptsResponse.data?.data) ? attemptsResponse.data.data : [];
+      const attemptsData = await testSeriesService.listAttempts(data.id);
       setAttempts(attemptsData);
     } catch (error) {
       toast.error('Failed to load test series');
@@ -150,12 +148,11 @@ export const TestPlayerPage = () => {
 
       const passed = testSeries ? totalMarks >= testSeries.passingMarks : false;
 
-      const response = await api.post(`/test-series/${testSeriesId}/attempts`, {
+      const savedAttempt = await testSeriesService.createAttempt(testSeriesId!, {
         score: totalMarks,
         passed,
       });
 
-      const savedAttempt = response.data?.data as TestAttempt | undefined;
       if (savedAttempt) {
         setAttempts((prev) => [...prev, savedAttempt]);
       }
@@ -172,8 +169,7 @@ export const TestPlayerPage = () => {
 
       if (testSeriesId) {
         try {
-          const attemptsResponse = await api.get(`/test-series/${testSeriesId}/attempts`);
-          const attemptsData = Array.isArray(attemptsResponse.data?.data) ? attemptsResponse.data.data : [];
+          const attemptsData = await testSeriesService.listAttempts(testSeriesId);
           setAttempts(attemptsData);
         } catch {
           // Ignore refresh failures here.

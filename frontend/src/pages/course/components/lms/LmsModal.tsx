@@ -1,9 +1,9 @@
-import { Modal } from '../../components/Modal';
-import { ContentModalForm } from './ContentModalForm';
-import { AssignmentModalForm } from './AssignmentModalForm';
-import { SubmissionModalForm } from './SubmissionModalForm';
-import { TestSeriesModalForm } from './TestSeriesModalForm';
-import { LmsModalMode, LmsFormState, LmsItem, CourseRow } from './types';
+import { Modal } from '../../../../components/Modal';
+import { ContentModalForm } from '../lecture/ContentModalForm';
+import { AssignmentModalForm } from '../assignment/AssignmentModalForm';
+import { SubmissionModalForm } from '../assignment/SubmissionModalForm';
+import { TestSeriesModalForm } from '../test/TestSeriesModalForm';
+import { LmsModalMode, LmsFormState, LmsItem, CourseRow } from '../../types';
 
 interface LmsModalProps {
   open: boolean;

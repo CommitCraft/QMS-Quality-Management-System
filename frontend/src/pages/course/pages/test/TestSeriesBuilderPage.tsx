@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api } from '../../services/api';
+import { testSeriesService } from '../../services';
 
 type QuestionType = 'mcq' | 'true_false' | 'short_answer';
 
@@ -65,8 +65,7 @@ export const TestSeriesBuilderPage = () => {
     if (!testSeriesId) return;
     setLoading(true);
     try {
-      const response = await api.get(`/test-series/${testSeriesId}`);
-      const data = response.data.data;
+      const data = await testSeriesService.getById(testSeriesId);
       setTestSeries(data);
       const normalizedQuestions = (data.questions || []).map((q: any) => ({
         ...q,
@@ -203,13 +202,14 @@ export const TestSeriesBuilderPage = () => {
           optionD: q.optionD || null,
           correctAnswer: q.correctAnswer,
           marks: q.marks,
+          section: q.section || 'General',
         })),
         totalQuestions: questions.length,
         totalMarks: questions.reduce((sum, q) => sum + q.marks, 0),
       };
 
       if (testSeriesId) {
-        await api.put(`/test-series/${testSeriesId}`, payload);
+        await testSeriesService.update(Number(testSeriesId), payload);
         toast.success('Test series published successfully');
         loadTestSeries();
       }

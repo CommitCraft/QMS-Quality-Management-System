@@ -2,16 +2,16 @@ import { Fragment, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import toast from "react-hot-toast";
-import { api } from "../../services/api";
 import {
   CourseRow,
   CourseFormState,
   CourseResponse,
   DEFAULT_COURSE_FORM,
-  formatDate,
-} from "./types";
-import { CourseFormModal } from "./CourseFormModal";
-import { CourseActionMenu } from "./CourseActionMenu";
+} from "../types";
+import { formatDate } from "../utils/date";
+import { CourseFormModal } from "../components/common/CourseFormModal";
+import { CourseActionMenu } from "../components/common/CourseActionMenu";
+import { courseService } from "../services";
 
 const CoursePage = () => {
   const navigate = useNavigate();
@@ -45,12 +45,14 @@ const CoursePage = () => {
   const loadCourses = async () => {
     setLoading(true);
     try {
-      const response = await api.get<CourseResponse>("/training", {
-        params: { search: search || undefined, page, limit: 10 },
+      const response = await courseService.listTrainingCourses({
+        search: search || undefined,
+        page,
+        limit: 10,
       });
-      setRows(response.data.data || []);
-      if (response.data.meta) {
-        setMeta(response.data.meta);
+      setRows(response.data || []);
+      if (response.meta) {
+        setMeta(response.meta);
       }
     } catch (error) {
       const status = (error as AxiosError)?.response?.status;
@@ -92,7 +94,7 @@ const CoursePage = () => {
     }
 
     try {
-      await api.delete(`/training/${row.id}`);
+      await courseService.deleteTrainingCourse(row.id);
       toast.success("Course deleted");
       await loadCourses();
     } catch {
@@ -120,10 +122,10 @@ const CoursePage = () => {
 
     try {
       if (editing) {
-        await api.put(`/training/${editing.id}`, payload);
+        await courseService.updateTrainingCourse(editing.id, payload);
         toast.success("Course updated");
       } else {
-        await api.post("/training", payload);
+        await courseService.createTrainingCourse(payload);
         toast.success("Course created");
       }
       setModalOpen(false);

@@ -1,7 +1,7 @@
 import { DragEvent, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { PageHeader } from '../../components/PageHeader';
-import { api } from '../../services/api';
+import { PageHeader } from '../../../components/PageHeader';
+import { courseService } from '../services';
 
 type UserCard = {
   id: number;
@@ -30,18 +30,21 @@ const AssignCoursePage = () => {
     setLoading(true);
     try {
       const [coursesRes, usersRes] = await Promise.all([
-        api.get('/training'),
-        api.get('/users'),
+        courseService.listTrainingCourses(),
+        courseService.listUsers(),
       ]);
-      const courseList = coursesRes.data.data || [];
+      const courseList = (coursesRes.data || []).map((course: any) => ({
+        id: Number(course.id),
+        title: String(course.title || `Course #${course.id}`),
+      }));
       const userList = usersRes.data.data || [];
       const resolvedCourseId = courseId ?? courseList[0]?.id ?? null;
 
         let assignedUserIds = new Set<number>();
         if (resolvedCourseId) {
           try {
-            const enrollmentsRes = await api.get(`/training/${resolvedCourseId}/enrollments`);
-            assignedUserIds = new Set((enrollmentsRes.data.data || []).map((user: any) => user.id));
+            const enrollmentsRes = await courseService.listEnrollments(resolvedCourseId);
+            assignedUserIds = new Set((enrollmentsRes.data || []).map((user: any) => user.id));
           } catch {
             // If enrollments endpoint fails, continue with empty set
           }
@@ -117,10 +120,7 @@ const AssignCoursePage = () => {
 
       setSaving(true);
       try {
-        await api.post('/training/assign', {
-          courseId: selectedCourse,
-          userIds: changedUserIds,
-        });
+        await courseService.assignUsers(selectedCourse, changedUserIds);
         toast.success('Course assigned successfully');
         await loadData(selectedCourse);
       } catch {

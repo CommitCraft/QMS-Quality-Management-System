@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
-import { PageHeader } from '../../components/PageHeader';
-import { api } from '../../services/api';
+import { PageHeader } from '../../../components/PageHeader';
+import { courseService } from '../services';
 
 type CourseSummaryData = {
   totalCourses: number;
@@ -22,8 +22,8 @@ const CourseSummaryPage = () => {
     const loadSummary = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/training/summary');
-        setSummary(response.data.data || null);
+        const response = await courseService.getTrainingSummary<CourseSummaryData>();
+        setSummary(response.data || null);
       } catch (error) {
         const status = (error as AxiosError)?.response?.status;
         if (status !== 404) {

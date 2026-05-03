@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api } from '../../services/api';
-import { DataTable } from '../../components/DataTable';
-import { Modal } from '../../components/Modal';
-import { StatusBadge } from '../../components/StatusBadge';
-import { LmsModal } from './LmsModal';
-import { useLmsData } from './useLmsData';
+import { DataTable } from '../../../../components/DataTable';
+import { Modal } from '../../../../components/Modal';
+import { StatusBadge } from '../../../../components/StatusBadge';
+import { LmsModal } from '../../components/lms/LmsModal';
+import { useLmsData } from '../../hooks/useLmsData';
+import { courseService, testSeriesService } from '../../services';
 import {
   CourseRow,
-  CourseResponse,
   LmsItem,
   LmsModalMode,
   LmsFormState,
   DEFAULT_LMS_FORM,
-} from './types';
+} from '../../types';
 
 type LmsViewType = 'content' | 'assignments' | 'checking' | 'testSeries';
 
@@ -99,12 +98,10 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
   useEffect(() => {
     const loadCourses = async () => {
       try {
-        const response = await api.get<CourseResponse>('/training', {
-          params: { limit: 100 },
-        });
-        setCourses(response.data.data || []);
-        if (!selectedCourseId && response.data.data?.[0]) {
-          setSelectedCourseId(response.data.data[0].id);
+        const response = await courseService.listTrainingCourses({ limit: 100 });
+        setCourses(response.data || []);
+        if (!selectedCourseId && response.data?.[0]) {
+          setSelectedCourseId(response.data[0].id);
         }
       } catch {
         toast.error('Unable to load courses');
@@ -219,8 +216,7 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
     setAttemptReportTestTitle(item.title || `Test ${item.id}`);
 
     try {
-      const response = await api.get(`/test-series/${item.id}/attempts/report`);
-      const payload = response.data?.data as Partial<TestAttemptReportData> | undefined;
+      const payload = (await testSeriesService.getAttemptsReport(item.id)) as Partial<TestAttemptReportData> | undefined;
       setAttemptReportData({
         totalAttempts: Number(payload?.totalAttempts || 0),
         totalUsers: Number(payload?.totalUsers || 0),

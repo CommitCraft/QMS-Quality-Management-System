@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Modal } from '../../components/Modal';
-import { api } from '../../services/api';
+import { Modal } from '../../../components/Modal';
+import { api } from '../../../services/api';
+import { assignmentService, contentService, courseService, testSeriesService } from '../services';
 
 type Lecture = {
   id: number;
@@ -34,18 +35,12 @@ type CourseDetail = {
   sections?: CourseModule[];
 };
 
-type CourseDetailResponse = {
-  success: boolean;
-  data?: CourseDetail;
-  message?: string;
-};
-
 type LmsItem = {
   id: number;
   assignmentId?: number;
   module?: string | null;
   displayOrder?: number | null;
-  title: string;
+  title?: string;
   completed?: boolean;
   status?: string;
   description?: string;
@@ -76,12 +71,6 @@ type LmsItem = {
     passingMarks?: number | null;
     attachmentUrl?: string | null;
   };
-};
-
-type LmsResponse = {
-  success: boolean;
-  data?: LmsItem[];
-  message?: string;
 };
 
 type ContentProgressItem = {
@@ -443,11 +432,8 @@ const CoursePlayerPage = () => {
     setErrorMessage(null);
 
     try {
-      const response = await api.get<CourseDetailResponse>(
-        `/training/${courseId}`,
-      );
-
-      const courseData = response.data.data;
+      const response = await courseService.getTrainingCourseById<CourseDetail>(courseId);
+      const courseData = response.data;
 
       if (!courseData) {
         setCourse(null);
@@ -497,16 +483,16 @@ const CoursePlayerPage = () => {
     setLmsLoading(true);
     try {
       const [contentRes, assignmentsRes, submissionsRes, testsRes, progressRes] = await Promise.allSettled([
-        api.get(`/courses/${courseId}/content`),
-        api.get(`/assignments?courseId=${courseId}`),
-        api.get(`/assignment-submissions?courseId=${courseId}`),
-        api.get(`/test-series?courseId=${courseId}`),
-        api.get(`/courses/${courseId}/content-progress`),
+        contentService.list(Number(courseId)),
+        assignmentService.listByCourse(courseId),
+        assignmentService.listSubmissionsByCourse(courseId),
+        testSeriesService.listByCourse(courseId),
+        contentService.listProgress(courseId),
       ]);
 
       const progressMap: Record<number, boolean> = {};
       if (progressRes.status === 'fulfilled') {
-        const progressItems = (progressRes.value.data.data || []) as ContentProgressItem[];
+        const progressItems = (progressRes.value || []) as ContentProgressItem[];
         progressItems.forEach((item) => {
           if (item.status === 'completed') {
             progressMap[Number(item.contentId)] = true;
@@ -517,7 +503,7 @@ const CoursePlayerPage = () => {
       setContentProgressById(progressMap);
 
       if (contentRes.status === 'fulfilled') {
-        const items = (contentRes.value.data.data || []) as LmsItem[];
+        const items = (contentRes.value || []) as LmsItem[];
         setCourseContent(
           items.map((item) => ({
             ...item,
@@ -526,13 +512,13 @@ const CoursePlayerPage = () => {
         );
       }
       if (assignmentsRes.status === 'fulfilled') {
-        setAssignments(assignmentsRes.value.data.data || []);
+        setAssignments(assignmentsRes.value || []);
       }
       if (submissionsRes.status === 'fulfilled') {
-        setSubmissions(submissionsRes.value.data.data || []);
+        setSubmissions(submissionsRes.value || []);
       }
       if (testsRes.status === 'fulfilled') {
-        setTestSeries(testsRes.value.data.data || []);
+        setTestSeries(testsRes.value || []);
       }
     } catch (error) {
       // Silently fail for LMS data
@@ -752,9 +738,7 @@ const CoursePlayerPage = () => {
       return;
     }
 
-    void api.patch(`/courses/${courseId}/content/${contentId}/progress`, {
-      status: lecture?.completed ? 'completed' : 'opened',
-    });
+    void contentService.updateProgress(courseId, contentId, lecture?.completed ? 'completed' : 'opened');
   };
 
   const scheduleProgressSync = () => {
@@ -777,7 +761,7 @@ const CoursePlayerPage = () => {
       try {
         await Promise.all(
           updates.map(([contentId, status]) =>
-            api.patch(`/courses/${courseId}/content/${contentId}/progress`, { status }),
+            contentService.updateProgress(courseId, contentId, status),
           ),
         );
       } catch {
@@ -889,8 +873,7 @@ const CoursePlayerPage = () => {
 
     // Load attempts from server for this test and current user.
     try {
-      const response = await api.get(`/test-series/${item.id}/attempts`);
-      const attempts = Array.isArray(response.data?.data) ? (response.data.data as TestAttempt[]) : [];
+      const attempts = await testSeriesService.listAttempts(item.id);
       setTestAttempts(attempts);
     } catch {
       setTestAttempts([]);
@@ -958,11 +941,9 @@ const CoursePlayerPage = () => {
           formData.append('submissionUrl', assignmentSubmissionUrl.trim());
         }
 
-        await api.post(`/assignment-submissions/assignments/${selectedAssignment.id}/submit-file`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await assignmentService.submitAssignmentWithFile(selectedAssignment.id, formData);
       } else {
-        await api.post(`/assignment-submissions/assignments/${selectedAssignment.id}/submit`, {
+        await assignmentService.submitAssignment(selectedAssignment.id, {
           submissionType: hasUrl ? 'url' : 'text',
           submissionText: assignmentSubmissionText.trim() || undefined,
           submissionUrl: assignmentSubmissionUrl.trim() || undefined,

@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
-import { DataTable } from '../../components/DataTable';
-import { StatusBadge } from '../../components/StatusBadge';
-import { TableColumn } from '../../types';
-import { api } from '../../services/api';
+import { DataTable } from '../../../components/DataTable';
+import { StatusBadge } from '../../../components/StatusBadge';
+import { TableColumn } from '../../../types';
+import { courseService } from '../services';
 
 type MyCourseRow = {
   id: number;
@@ -21,7 +21,6 @@ type MyCoursesResponse = {
   success: boolean;
   data?: MyCourseRow[];
 };
-
 const MyCoursesPage = () => {
   const navigate = useNavigate();
 
@@ -97,12 +96,10 @@ const MyCoursesPage = () => {
     setErrorMessage(null);
 
     try {
-      const response = await api.get<MyCoursesResponse>('/training/my-courses', {
-        params: { search: search || undefined },
-      });
+      const response = await courseService.listMyCourses<MyCourseRow>({ search: search || undefined });
 
       setRows(
-        (response.data.data || []).map((row) => ({
+        (response.data || []).map((row) => ({
           ...row,
           progressPercentage: Number(row.progressPercentage || 0),
         })),

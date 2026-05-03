@@ -1,4 +1,4 @@
-import { LmsFormState, CourseRow } from './types';
+import { LmsFormState, CourseRow } from '../../types';
 
 interface TestSeriesModalFormProps {
   form: LmsFormState;

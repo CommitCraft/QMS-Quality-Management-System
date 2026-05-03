@@ -1,4 +1,4 @@
-import { CourseRow } from './types';
+import { CourseRow } from '../../types';
 
 interface CourseActionMenuProps {
   isOpen: boolean;

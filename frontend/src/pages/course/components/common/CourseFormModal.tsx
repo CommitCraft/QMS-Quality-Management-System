@@ -1,5 +1,5 @@
-import { Modal } from '../../components/Modal';
-import { CourseRow, CourseFormState, DEFAULT_COURSE_FORM } from './types';
+import { Modal } from '../../../../components/Modal';
+import { CourseRow, CourseFormState } from '../../types';
 
 interface CourseFormModalProps {
   open: boolean;
