@@ -27,7 +27,7 @@ import CoursePage from './pages/course/CoursePage';
 import MyCoursesPage from './pages/course/MyCoursesPage';
 import AssignCoursePage from './pages/course/AssignCoursePage';
 import CourseSummaryPage from './pages/course/CourseSummaryPage';
-import { LmsContentPage, LmsAssignmentsPage, LmsCheckingPage, LmsTestSeriesPage } from './pages/course';
+import { LmsContentPage, LmsAssignmentsPage, LmsCheckingPage, LmsTestSeriesPage, TestSeriesBuilderPage, TestPlayerPage } from './pages/course';
 import CoursePlayerPage from './pages/course/CoursePlayerPage';
 const App = () => {
   return (
@@ -118,11 +118,13 @@ const App = () => {
             <Route path="/lms/assignments" element={<LmsAssignmentsPage />} />
             <Route path="/lms/checking" element={<LmsCheckingPage />} />
             <Route path="/lms/test-series" element={<LmsTestSeriesPage />} />
+            <Route path="/lms/test-series/:testSeriesId/builder" element={<TestSeriesBuilderPage />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredPermissions={["VIEW_MY_COURSES"]} />}>
             <Route path="/course/my-courses" element={<MyCoursesPage />} />
             <Route path="/training/my-courses/:courseId" element={<CoursePlayerPage />} />
+            <Route path="/training/test/:testSeriesId" element={<TestPlayerPage />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredPermissions={["MANAGE_TRAINING_ASSIGN_COURSE"]} />}>

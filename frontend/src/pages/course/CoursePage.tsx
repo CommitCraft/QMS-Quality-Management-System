@@ -143,7 +143,13 @@ const CoursePage = () => {
     view: "content" | "assignments" | "checking" | "testSeries",
     courseId: number,
   ) => {
-    navigate(`/lms/${view}?courseId=${courseId}`);
+    const pathMap: Record<string, string> = {
+      content: 'content',
+      assignments: 'assignments',
+      checking: 'checking',
+      testSeries: 'test-series',
+    };
+    navigate(`/lms/${pathMap[view]}?courseId=${courseId}`);
   };
 
   return (

@@ -87,7 +87,6 @@ export const LmsModal = ({
         <AssignmentModalForm
           form={form}
           courses={courses}
-          moduleOptions={moduleOptions}
           onChange={onFormChange}
         />
       ) : null}

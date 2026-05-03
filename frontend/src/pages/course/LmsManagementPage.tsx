@@ -212,8 +212,20 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
       { key: 'totalQuestions', label: 'Questions' },
       { key: 'totalMarks', label: 'Marks' },
       { key: 'durationMinutes', label: 'Duration' },
+      { 
+        key: 'actions', 
+        label: 'Test Builder',
+        render: (item: Record<string, unknown>) => (
+          <button
+            onClick={() => navigate(`/lms/test-series/${item.id}/builder`)}
+            className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition"
+          >
+            Edit Questions
+          </button>
+        )
+      },
     ],
-    []
+    [navigate]
   );
 
   const getViewTitle = (view: LmsViewType): string => {
@@ -365,6 +377,7 @@ export const LmsManagementPage = ({ view = 'content' }: LmsManagementPageProps) 
         editing={lmsEditing}
         saving={lmsSaving}
         courses={courses}
+        moduleOptions={[]}
         onClose={closeLmsModal}
         onSave={saveLmsModal}
         onFormChange={(key, value) => setLmsForm((current) => ({ ...current, [key]: value }))}

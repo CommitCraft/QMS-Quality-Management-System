@@ -756,6 +756,30 @@ testSeriesRouter.put(
       endDate: payload.endDate ? new Date(String(payload.endDate)) : item.endDate,
       status: normalizeEnum(payload.status, ['Draft', 'Active', 'Expired'], item.status),
     } as never);
+
+    // Handle questions if provided
+    if (Array.isArray(payload.questions)) {
+      // Delete existing questions
+      await TestQuestion.destroy({ where: { testSeriesId: item.id } });
+      
+      // Create new questions
+      for (const questionData of payload.questions) {
+        const q = questionData as Record<string, unknown>;
+        await TestQuestion.create({
+          testSeriesId: item.id,
+          questionText: String(q.questionText || '').trim(),
+          questionType: normalizeEnum(q.questionType, ['mcq', 'true_false', 'short_answer'], 'mcq'),
+          optionA: q.optionA ? String(q.optionA) : null,
+          optionB: q.optionB ? String(q.optionB) : null,
+          optionC: q.optionC ? String(q.optionC) : null,
+          optionD: q.optionD ? String(q.optionD) : null,
+          correctAnswer: q.correctAnswer ? String(q.correctAnswer) : null,
+          marks: toNumber(q.marks, 1),
+          section: q.section ? String(q.section).trim() : 'General',
+        } as never);
+      }
+    }
+
     res.json({ success: true, data: item });
   }),
 );

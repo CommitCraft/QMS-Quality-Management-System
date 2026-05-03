@@ -55,6 +55,11 @@ type LmsItem = {
   feedback?: string | null;
   submittedAt?: string | null;
   marksObtained?: number | null;
+  totalQuestions?: number | null;
+  totalMarks?: number | null;
+  durationMinutes?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
   fileName?: string | null;
   submissionUrl?: string | null;
   uploadedFileUrl?: string | null;
@@ -119,6 +124,8 @@ const CoursePlayerPage = () => {
   const [assignmentSubmitting, setAssignmentSubmitting] = useState(false);
   const [viewSubmissionOpen, setViewSubmissionOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<LmsItem | null>(null);
+  const [viewTestOpen, setViewTestOpen] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<LmsItem | null>(null);
   const [contentProgressById, setContentProgressById] = useState<Record<number, boolean>>({});
   const progressSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingProgressRef = useRef<Record<number, 'not_started' | 'completed'>>({});
@@ -642,6 +649,41 @@ const CoursePlayerPage = () => {
     }
   };
 
+  const formatTestDate = (dateString?: string | null) => {
+    if (!dateString) return null;
+
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getTestStatusMeta = (item: LmsItem) => {
+    const normalizedStatus = (item.status || '').toLowerCase();
+
+    if (normalizedStatus === 'active') {
+      return { label: 'Active', badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200' };
+    }
+
+    if (normalizedStatus === 'expired') {
+      return { label: 'Expired', badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200' };
+    }
+
+    if (normalizedStatus === 'draft') {
+      return { label: 'Draft', badgeClass: 'bg-slate-50 text-slate-700 border border-slate-200' };
+    }
+
+    return {
+      label: item.status ? item.status : 'Scheduled',
+      badgeClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+    };
+  };
+
   const getContentMeta = (item: LmsItem) => {
     const contentType = item.contentType?.toLowerCase();
 
@@ -831,6 +873,24 @@ const CoursePlayerPage = () => {
   const closeSubmissionViewModal = () => {
     setViewSubmissionOpen(false);
     setSelectedSubmission(null);
+  };
+
+  const openTestDetailsModal = (item: LmsItem) => {
+    setSelectedTest(item);
+    setViewTestOpen(true);
+  };
+
+  const closeTestDetailsModal = () => {
+    setViewTestOpen(false);
+    setSelectedTest(null);
+  };
+
+  const startTest = (testId: number) => {
+    navigate(`/training/test/${testId}`);
+  };
+
+  const openTestSeriesPanel = () => {
+    window.open(`/lms/test-series?courseId=${courseId}`, '_blank', 'noopener,noreferrer');
   };
 
   const closeAssignmentSubmitModal = () => {
@@ -1514,21 +1574,71 @@ const CoursePlayerPage = () => {
             <div className="w-full flex p-[12px] flex-col gap-2 rounded-xl border border-[#eaeaea] bg-white">
               <button
                 type="button"
-                onClick={() => setExpandedLmsSection(expandedLmsSection === 'tests' ? null : 'tests')}
+                onClick={() => {
+                  const nextSection = expandedLmsSection === 'tests' ? null : 'tests';
+                  setExpandedLmsSection(nextSection);
+                  if (nextSection === 'tests') {
+                    void loadLmsData();
+                  }
+                }}
                 className="flex items-center justify-between w-full text-left"
               >
-                <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87]">⚡ Tests ({testSeries.length})</div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="text-[#5c375c] text-sm font-semibold opacity-[0.87] truncate">⚡ Tests</div>
+                  <span className="rounded-full border border-[#eadcf0] bg-[#f8f2fb] px-2 py-0.5 text-[10px] font-semibold text-[#800080]">
+                    {testSeries.length}
+                  </span>
+                </div>
                 <span className={`text-xs transition-transform ${expandedLmsSection === 'tests' ? 'rotate-180' : ''}`}>▼</span>
               </button>
               {expandedLmsSection === 'tests' && (
-                <div className="flex flex-col gap-1.5 mt-2">
+                <div className="mt-2 flex flex-col gap-3">
                   {testSeries.length > 0 ? (
-                    testSeries.slice(0, 5).map((item) => (
-                      <div key={item.id} className="text-xs p-2 bg-slate-50 rounded border border-slate-200">
-                        <div className="font-medium text-slate-900">{item.title}</div>
-                        {item.status && <div className="text-slate-600">{item.status}</div>}
-                      </div>
-                    ))
+                    testSeries.slice(0, 5).map((item) => {
+                      const testStatus = getTestStatusMeta(item);
+                      const isActiveTest = (item.status || '').toLowerCase() === 'active';
+
+                      return (
+                        <div key={`test-${item.id}`} className="w-full rounded-xl border border-[#eaeaea] bg-white p-3 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-semibold text-[#5c375c]">{item.title || `Test #${item.id}`}</div>
+                              {item.description ? (
+                                <div className="mt-1 line-clamp-2 text-xs text-black/55">{item.description}</div>
+                              ) : null}
+                            </div>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${testStatus.badgeClass}`}>
+                              {testStatus.label}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-black/50">
+                            {item.totalQuestions ? <span>❓ {item.totalQuestions} Qs</span> : null}
+                            {item.totalMarks ? <span>• 🧮 {item.totalMarks} Marks</span> : null}
+                            {item.durationMinutes ? <span>• ⏱ {item.durationMinutes} min</span> : null}
+                            {item.startDate ? <span>• Starts {formatTestDate(item.startDate)}</span> : null}
+                            {item.endDate ? <span>• Ends {formatTestDate(item.endDate)}</span> : null}
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openTestDetailsModal(item)}
+                              className="flex items-center justify-center rounded-[46px] border border-[#8c008c] bg-[rgba(161,5,161,0.07)] px-3.5 py-2 text-xs font-medium text-[#8c008c] transition-colors hover:bg-[rgba(161,5,161,0.12)]"
+                            >
+                              View Details
+                            </button>
+                            <button
+                              type="button"
+                              onClick={openTestSeriesPanel}
+                              className="flex items-center justify-center rounded-[46px] border border-[#800080] bg-[#902190] px-3.5 py-2 text-xs font-medium text-white transition-colors hover:bg-[#7a1c7a]"
+                            >
+                              {isActiveTest ? 'Start Test' : 'Open Tests'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="text-xs text-slate-500">No tests available</div>
                   )}
@@ -1713,6 +1823,92 @@ const CoursePlayerPage = () => {
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total Marks</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">{selectedSubmission.maxMarks} Marks</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={viewTestOpen}
+        title={selectedTest ? `Test Details: ${selectedTest.title}` : 'Test Details'}
+        onClose={closeTestDetailsModal}
+        footer={
+          <div className="flex gap-3 sm:justify-end">
+            <button
+              type="button"
+              className="rounded-md border border-[#d1d5db] bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              onClick={closeTestDetailsModal}
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => selectedTest && startTest(selectedTest.id)}
+              className="rounded-md bg-[#8c008c] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#740074]"
+            >
+              Take Test
+            </button>
+          </div>
+        }
+      >
+        {selectedTest ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-900">{selectedTest.title}</p>
+              {selectedTest.description ? (
+                <p className="mt-1 text-sm text-slate-600">{selectedTest.description}</p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {selectedTest.totalQuestions !== undefined && selectedTest.totalQuestions !== null ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total Questions</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedTest.totalQuestions}</p>
+                </div>
+              ) : null}
+
+              {selectedTest.totalMarks !== undefined && selectedTest.totalMarks !== null ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total Marks</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedTest.totalMarks}</p>
+                </div>
+              ) : null}
+
+              {selectedTest.passingMarks !== undefined && selectedTest.passingMarks !== null ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Passing Marks</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedTest.passingMarks}</p>
+                </div>
+              ) : null}
+
+              {selectedTest.durationMinutes !== undefined && selectedTest.durationMinutes !== null ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Duration</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedTest.durationMinutes} minutes</p>
+                </div>
+              ) : null}
+
+              {selectedTest.startDate ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Start Date</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{formatTestDate(selectedTest.startDate)}</p>
+                </div>
+              ) : null}
+
+              {selectedTest.endDate ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">End Date</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{formatTestDate(selectedTest.endDate)}</p>
+                </div>
+              ) : null}
+
+              {selectedTest.status ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{selectedTest.status}</p>
                 </div>
               ) : null}
             </div>

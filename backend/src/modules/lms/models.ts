@@ -84,6 +84,7 @@ class TestQuestionModel extends Model<InferAttributes<TestQuestionModel>, InferC
   declare optionD: string | null;
   declare correctAnswer: string | null;
   declare marks: number;
+  declare section?: string | null;
 }
 
 class CourseContentProgressModel extends Model<InferAttributes<CourseContentProgressModel>, InferCreationAttributes<CourseContentProgressModel>> {
@@ -188,6 +189,7 @@ TestQuestionModel.init(
     optionD: { type: DataTypes.TEXT, allowNull: true, field: 'option_d' },
     correctAnswer: { type: DataTypes.TEXT, allowNull: true, field: 'correct_answer' },
     marks: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 1 },
+    section: { type: DataTypes.STRING(255), allowNull: true, defaultValue: 'General' },
   },
   { sequelize, tableName: 'test_questions', underscored: true },
 );
