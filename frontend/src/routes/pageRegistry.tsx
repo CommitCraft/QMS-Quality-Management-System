@@ -21,7 +21,7 @@ const CompanyProfilePage = lazy(() => import('../pages/CompanyProfilePage'));
 const MyProfilePage = lazy(() => import('../pages/MyProfilePage'));
 const LoginAuditsPage = lazy(() => import('../pages/LoginAuditsPage'));
 const ErrorLogsPage = lazy(() => import('../pages/ErrorLogsPage'));
-const PageNotFound = lazy(() => import('../pages/PageNotFound'));
+const PageNotFound = lazy(() => import('../pages/NotFoundPage'));
 
 const CoursePage = lazy(() => import('../pages/course').then((m) => ({ default: m.CoursePage })));
 const MyCoursesPage = lazy(() => import('../pages/course').then((m) => ({ default: m.MyCoursesPage })));
